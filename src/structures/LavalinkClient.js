@@ -21,26 +21,32 @@ class LavalinkClient {
      * Initialize Kazagumo with Lavalink nodes
      */
     async initialize() {
-        // Support both local and Railway deployment
+        // Support both local and Railway/public Lavalink servers
         const isSecure = process.env.LAVALINK_SECURE === 'true';
         const host = process.env.LAVALINK_HOST || 'localhost';
         const port = process.env.LAVALINK_PORT || '2333';
+        const password = process.env.LAVALINK_PASSWORD || 'youshallnotpass';
 
-        // Build URL - Railway uses domain without port, local uses host:port
-        const url = host.includes('.') && isSecure
-            ? host  // Railway domain (e.g., lavalink-xyz.up.railway.app)
-            : `${host}:${port}`;  // Local (e.g., localhost:2333)
+        // Build URL - always include port for public servers
+        // Only Railway's own Lavalink (secure + .railway.app domain) skips port
+        const isRailwayHosted = host.includes('.railway.app') && isSecure;
+        const url = isRailwayHosted ? host : `${host}:${port}`;
+
+        // Determine node name based on environment
+        const nodeName = host.includes('localhost') ? 'Local' :
+            host.includes('railway.app') ? 'Railway' : 'Public';
 
         this.nodes = [
             {
-                name: isSecure ? 'Railway' : 'Local',
+                name: nodeName,
                 url: url,
-                auth: process.env.LAVALINK_PASSWORD || 'ryabot2024',
+                auth: password,
                 secure: isSecure
             }
         ];
 
-        console.log(`[LAVALINK] Connecting to: ${isSecure ? 'wss' : 'ws'}://${url} (secure=${isSecure})`);
+        console.log(`[LAVALINK] Config: host=${host}, port=${port}, secure=${isSecure}`);
+        console.log(`[LAVALINK] Connecting to: ${isSecure ? 'wss' : 'ws'}://${url} (node=${nodeName})`);
 
 
         // Create Kazagumo instance with Spotify plugin
