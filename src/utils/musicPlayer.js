@@ -10,7 +10,7 @@ const {
 } = require('@discordjs/voice');
 const ytdl = require('@distube/ytdl-core');
 const playDL = require('play-dl');
-const { exec } = require('yt-dlp-exec');
+// Note: yt-dlp-exec removed - Lavalink handles streaming now
 const { Readable } = require('stream');
 const config = require('../config/config.js');
 const AudioEffects = require('./audioEffects.js');
@@ -642,73 +642,36 @@ class MusicPlayer {
                 videoUrl = `https://www.youtube.com/watch?v=${track.id}`;
             }
 
-            // Method 1: Use yt-dlp-exec (most reliable)
-            try {
-                console.log(`[MUSIC PLAYER] Using yt-dlp-exec for: ${videoUrl}`);
+            // Use play-dl for streaming (Lavalink is primary, this is fallback)
+            console.log(`[MUSIC PLAYER] Using play-dl for: ${videoUrl}`);
+            const videoInfo = await playDL.video_info(videoUrl);
 
-                const ytdlpStream = exec(videoUrl, {
-                    extractAudio: true,
-                    audioFormat: 'opus',
-                    audioQuality: 0,
-                    output: '-',
-                    quiet: true,
-                    noWarnings: true,
-                    format: 'bestaudio[ext=webm]/bestaudio/best',
-                    noCheckCertificates: true,
-                    preferFreeFormats: true,
-                    addHeader: ['referer:youtube.com', 'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36']
+            if (videoInfo && videoInfo.video_details) {
+                const playStream = await playDL.stream_from_info(videoInfo, {
+                    quality: 2,
+                    discordPlayerCompatibility: true
                 });
 
-                console.log(`[MUSIC PLAYER] yt-dlp-exec stream created`);
+                console.log(`[MUSIC PLAYER] play-dl stream created successfully`);
 
-                // The exec returns a readable stream
-                if (ytdlpStream && ytdlpStream.stdout) {
-                    const stream = ytdlpStream.stdout;
+                // Apply audio effects if any are set
+                if (this.currentEffect || this.bassLevel !== 0 || this.trebleLevel !== 0) {
+                    const processedStream = await this.audioEffects.applyEffects(playStream.stream, {
+                        effect: this.currentEffect,
+                        bass: this.bassLevel,
+                        treble: this.trebleLevel,
+                        volume: this.volume / 100
+                    });
 
-                    // Apply audio effects if any are set
-                    if (this.currentEffect || this.bassLevel !== 0 || this.trebleLevel !== 0) {
-                        const processedStream = await this.audioEffects.applyEffects(stream, {
-                            effect: this.currentEffect,
-                            bass: this.bassLevel,
-                            treble: this.trebleLevel,
-                            volume: this.volume / 100
-                        });
-
-                        const { stream: finalStream, type } = await demuxProbe(processedStream);
-                        finalStream.type = type;
-                        return finalStream;
-                    }
-
-                    const { stream: probedStream, type } = await demuxProbe(stream);
-                    probedStream.type = type;
-                    return probedStream;
+                    const { stream: finalStream, type } = await demuxProbe(processedStream);
+                    finalStream.type = type;
+                    return finalStream;
                 }
 
-                throw new Error('yt-dlp-exec did not return a valid stream');
-
-            } catch (ytdlpError) {
-                console.warn('[MUSIC PLAYER] yt-dlp-exec failed:', ytdlpError.message);
-
-                // Method 2: Try play-dl as fallback
-                try {
-                    console.log(`[MUSIC PLAYER] Trying play-dl fallback...`);
-                    const videoInfo = await playDL.video_info(videoUrl);
-
-                    if (videoInfo && videoInfo.video_details) {
-                        const playStream = await playDL.stream_from_info(videoInfo, {
-                            quality: 2,
-                            discordPlayerCompatibility: true
-                        });
-
-                        console.log(`[MUSIC PLAYER] play-dl fallback successful`);
-                        return playStream.stream;
-                    }
-                } catch (playDLError) {
-                    console.warn('[MUSIC PLAYER] play-dl fallback failed:', playDLError.message);
-                }
-
-                throw ytdlpError;
+                return playStream.stream;
             }
+
+            throw new Error('Failed to get video info');
 
         } catch (error) {
             console.error('[MUSIC PLAYER] Stream creation error:', error);
