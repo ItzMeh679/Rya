@@ -1,0 +1,78 @@
+server:
+  port: 2333
+  address: 0.0.0.0
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    # Remote cipher server for signature deciphering
+    remoteCipher:
+      url: "https://cipher.kikkia.dev/"
+      userAgent: "RyaBot"
+    clients:
+      - TVHTML5EMBEDDED
+      - WEB
+      - ANDROID_VR
+      - IOS
+    # OAuth for TVHTML5EMBEDDED client (required for playback)
+    # Get your own OAuth tokens from Google Cloud Console
+    oauth:
+      enabled: true
+      clientId: "YOUR_GOOGLE_CLIENT_ID"
+      clientSecret: "YOUR_GOOGLE_CLIENT_SECRET"
+      refreshToken: "YOUR_GOOGLE_REFRESH_TOKEN"
+    # Client-specific options from docs
+    clientOptions:
+      TVHTML5EMBEDDED:
+        playback: true
+        videoLoading: true
+        playlistLoading: true
+        searching: true
+      WEB:
+        playback: true
+        videoLoading: true
+        playlistLoading: true
+        searching: true
+
+lavalink:
+  plugins:
+    # Latest youtube-plugin
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.16.0"
+      snapshot: false
+  server:
+    password: "ryabot2024"
+    sources:
+      youtube: false  # Disabled - using youtube-plugin instead
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true
+      local: false
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    youtubePlaylistLoadLimit: 100
+    playerUpdateInterval: 5
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    gc-warnings: true
+
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+
+logging:
+  file:
+    path: ./logs/
+  level:
+    root: INFO
+    lavalink: INFO
+
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7

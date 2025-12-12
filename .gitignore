@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.*.local
+
+# Lavalink secrets - use application.yml.example as template
+lavalink/application.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Lavalink logs and jar files
+lavalink/logs/
+lavalink/*.log
+lavalink/*.jar
+
+# FFmpeg - not needed for deployment
+ffmpeg-master-latest-win64-gpl-shared/
+ffmpeg-master-latest-win64-gpl-shared.zip
+*.zip
+
+# Data files (stored in Supabase now)
+data/prefixes.json
+
+# Temporary files
+*.tmp
+*.temp
