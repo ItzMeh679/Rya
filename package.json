@@ -31,8 +31,8 @@
   "author": "Your Name",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
     "@discordjs/builders": "^1.7.0",
@@ -61,8 +61,7 @@
     "tweetnacl": "^1.0.3",
     "uuid": "^9.0.1",
     "youtube-sr": "^4.3.4",
-    "yt-dlp-exec": "^1.0.2",
-    "yt-dlp-wrap": "^2.3.12"
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
