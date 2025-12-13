@@ -850,17 +850,18 @@ class LavalinkClient {
 
 
         // Words that indicate a remix/cover/wrong version - EXPANDED LIST
+        // NOTE: 'lyrics' removed - lyric videos often have correct duration
         const excludePatterns = [
             /\bslowed\b/i, /\breverb\b/i, /\bremix\b/i, /\bcover\b/i,
             /\bbootleg\b/i, /\bedit\b/i, /\bspeed\s*up\b/i, /\b8d\b/i,
             /\bbass\s*boost/i, /\bnightcore\b/i, /\bflipped\b/i,
-            /\blofi\b/i, /\blo-fi\b/i, /\blo fi\b/i, // ADDED: lofi variations
-            /\bmashup\b/i, /\bmash-up\b/i, /\bmix\b/i, // ADDED: mashup
-            /\blyrics?\b/i, /\bkaraoke\b/i, /\binstrumental\b/i,
+            /\blofi\b/i, /\blo-fi\b/i, /\blo fi\b/i,
+            /\bmashup\b/i, /\bmash-up\b/i,
+            /\bkaraoke\b/i, /\binstrumental\b/i,
             /\bacoustic\b/i, /\bunplugged\b/i, /\blive\b/i,
             /\bextended\b/i, /\bshort\b/i, /\bfull\s*version\b/i,
             /\bslomo\b/i, /\bslow\s*motion\b/i, /\bpitched\b/i,
-            /\bchill\b/i, /\btrap\b/i, /\bbeats?\b/i // ADDED: "chill trap beats" etc.
+            /\bchill\b/i, /\btrap\b/i, /\bbeats?\b/i
         ];
 
         // Build search queries
@@ -1040,18 +1041,26 @@ class LavalinkClient {
                 score -= 25; // Probably a cover by different artist
             }
 
-            // STRICT duration matching - this is crucial for finding the right version
+            // STRICT duration matching - THIS IS THE MOST IMPORTANT FACTOR for Spotify
+            // Exact duration = almost certainly the same recording
             if (spotifyDuration && track.length) {
                 const durationDiff = Math.abs(track.length - spotifyDuration);
-                if (durationDiff < 5000) {
-                    score += 40; // Almost exact match - very good!
-                } else if (durationDiff < 15000) {
-                    score += 25; // Within 15 seconds - good
-                } else if (durationDiff < 30000) {
-                    score += 5; // Within 30 seconds - acceptable
-                } else if (durationDiff > 45000) {
-                    score -= 30; // More than 45s different - probably wrong version
+                if (durationDiff < 3000) {
+                    score += 150; // EXACT match (within 3s) - massive bonus!
+                } else if (durationDiff < 5000) {
+                    score += 100; // Almost exact (within 5s) - very high bonus
+                } else if (durationDiff < 10000) {
+                    score += 30; // Within 10 seconds - good
+                } else if (durationDiff < 20000) {
+                    score -= 20; // 10-20s off - probably wrong version
+                } else {
+                    score -= 80; // More than 20s different - definitely wrong
                 }
+            }
+
+            // PENALIZE music videos - they usually have different duration
+            if (title.includes('official music video') || title.includes('music video')) {
+                score -= 50; // Music videos often have intro/outro added
             }
 
             // Penalize very short or very long tracks
