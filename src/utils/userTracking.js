@@ -221,6 +221,53 @@ class UserTracking {
     }
 
     /**
+     * Clear user's listening history from database
+     */
+    async clearUserHistory(discordUserId) {
+        try {
+            const client = await supabaseClient.getClient();
+            if (!client) {
+                return { success: false, error: 'Database not connected' };
+            }
+
+            // Get user ID first
+            const { data: user, error: userError } = await client
+                .from('users')
+                .select('id')
+                .eq('discord_id', discordUserId)
+                .single();
+
+            if (userError || !user) {
+                return { success: false, error: 'User not found', count: 0 };
+            }
+
+            // Count tracks before deletion
+            const { count: trackCount } = await client
+                .from('listening_history')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id);
+
+            // Delete all history for this user
+            const { error: deleteError } = await client
+                .from('listening_history')
+                .delete()
+                .eq('user_id', user.id);
+
+            if (deleteError) {
+                console.error('[TRACKING] Error clearing history:', deleteError.message);
+                return { success: false, error: deleteError.message, count: 0 };
+            }
+
+            console.log(`[TRACKING] Cleared ${trackCount || 0} tracks for user ${discordUserId}`);
+            return { success: true, count: trackCount || 0 };
+
+        } catch (error) {
+            console.error('[TRACKING] Error in clearUserHistory:', error.message);
+            return { success: false, error: error.message, count: 0 };
+        }
+    }
+
+    /**
      * Disable tracking
      */
     disable() {

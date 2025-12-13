@@ -17,7 +17,6 @@ const AudioEffects = require('./audioEffects.js');
 const SpotifyHelper = require('./spotifyHelper.js');
 const LyricsHelper = require('./lyricsHelper.js');
 const YouTubeHelper = require('./youtubeHelper.js');
-const userTracking = require('./userTracking.js');
 const sessionManager = require('./sessionManager.js');
 const { QUICK_EMOJIS, PREMIUM_COLORS, validateEmojiConfig } = require('../config/emojiConfig.js');
 
@@ -1273,12 +1272,21 @@ class MusicPlayer {
         
         Recommend something that would naturally flow well after the current track, not just from the same artist. Focus on musical similarity and listener experience rather than artist repetition.`;
 
-            // Use RecommendationsHelper with enhanced AI prompt
+            // Use RecommendationsHelper with enhanced AI prompt and Supabase history
             const RecommendationsHelper = require('./recommendationsHelper.js');
+
+            // Get user ID from current track requester for personalized recommendations
+            const requesterId = this.currentTrack?.requester?.id;
+
             const recommendations = await RecommendationsHelper.getRecommendations(
                 currentTrack,
                 recentHistory,
-                { count: 5, mood: 'similar', aiPrompt: aiPrompt }
+                {
+                    count: 5,
+                    mood: 'similar',
+                    aiPrompt: aiPrompt,
+                    userId: requesterId  // Enable Supabase history for personalized autoplay
+                }
             );
 
             if (recommendations && recommendations.length > 0) {

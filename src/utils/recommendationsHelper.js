@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../config/config.js');
 const SpotifyHelper = require('./spotifyHelper.js');
-
+const statsManager = require('./statsManager.js');
 class RecommendationsHelper {
     constructor() {
         this.openaiClient = this.initializeOpenAI();
@@ -71,6 +71,7 @@ class RecommendationsHelper {
 
     /**
      * MAIN ENTRY POINT: Get AI-powered music recommendations with enhanced error handling
+     * Now fetches user's listening history from Supabase for better personalization
      */
     async getRecommendations(currentTrack, history = [], options = {}) {
         try {
@@ -80,7 +81,8 @@ class RecommendationsHelper {
                 mood = null,
                 energy = null,
                 preferredProvider = 'openai',
-                includeSpotifyData = true
+                includeSpotifyData = true,
+                userId = null  // Discord user ID for Supabase history
             } = options;
 
             // Validate input
@@ -89,8 +91,36 @@ class RecommendationsHelper {
                 return this.getBasicFallbackRecommendations(currentTrack, history, options);
             }
 
-            // Generate cache key
-            const cacheKey = this.generateCacheKey(currentTrack, history, options);
+            // Fetch user's listening history from Supabase for better recommendations
+            let enrichedHistory = [...history];
+            if (userId) {
+                try {
+                    const supabaseHistory = await statsManager.getUserHistory(userId, 20);
+                    if (supabaseHistory && supabaseHistory.length > 0) {
+                        console.log(`[RECOMMENDATIONS] Fetched ${supabaseHistory.length} tracks from Supabase for user ${userId}`);
+                        // Convert Supabase format to recommendation format
+                        const formattedHistory = supabaseHistory.map(track => ({
+                            title: track.track_title,
+                            artist: track.track_artist,
+                            source: 'supabase_history'
+                        }));
+                        // Merge with provided history (avoid duplicates)
+                        const existingTitles = new Set(enrichedHistory.map(t => `${t.title}:${t.artist}`.toLowerCase()));
+                        formattedHistory.forEach(track => {
+                            const key = `${track.title}:${track.artist}`.toLowerCase();
+                            if (!existingTitles.has(key)) {
+                                enrichedHistory.push(track);
+                                existingTitles.add(key);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.warn('[RECOMMENDATIONS] Could not fetch Supabase history:', error.message);
+                }
+            }
+
+            // Generate cache key (include userId for personalization)
+            const cacheKey = this.generateCacheKey(currentTrack, enrichedHistory, options);
 
             // Check cache first
             const cached = this.getFromCache(cacheKey);
@@ -105,7 +135,7 @@ class RecommendationsHelper {
             try {
                 recommendations = await this.getAIRecommendationsWithFallback(
                     currentTrack,
-                    history,
+                    enrichedHistory,  // Use enriched history with Supabase data
                     options
                 );
             } catch (error) {
@@ -118,7 +148,7 @@ class RecommendationsHelper {
                 console.log('[RECOMMENDATIONS] Using enhanced fallback due to AI failure');
                 recommendations = await this.getEnhancedFallbackRecommendations(
                     currentTrack,
-                    history,
+                    enrichedHistory,  // Use enriched history
                     options
                 );
             }
@@ -129,7 +159,7 @@ class RecommendationsHelper {
             // Ensure we have at least some recommendations
             if (recommendations.length === 0) {
                 console.log('[RECOMMENDATIONS] Using basic fallback as ultimate safety net');
-                recommendations = this.getBasicFallbackRecommendations(currentTrack, history, options);
+                recommendations = this.getBasicFallbackRecommendations(currentTrack, enrichedHistory, options);
             }
 
             // Cache the results

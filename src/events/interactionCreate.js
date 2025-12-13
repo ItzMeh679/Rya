@@ -892,9 +892,12 @@ async function handleRecommendationsMenu(interaction, player) {
         const loadingEmbed = createInfoEmbed('Getting Recommendations', `${QUICK_EMOJIS.browse()} AI is analyzing your music taste...`);
         const loadingMessage = await interaction.followUp({ embeds: [loadingEmbed], ephemeral: true });
 
-        // Get AI recommendations
+        // Get AI recommendations with Supabase history for personalization
         const history = player.playbackHistory || [];
-        const recommendations = await RecommendationsHelper.getRecommendations(currentTrack, history, { count: 5 });
+        const recommendations = await RecommendationsHelper.getRecommendations(currentTrack, history, {
+            count: 5,
+            userId: interaction.user.id  // Enable Supabase history for better personalization
+        });
 
         if (recommendations.length === 0) {
             const embed = createWarningEmbed('No Recommendations', `${QUICK_EMOJIS.browse()} Unable to generate recommendations at this time.`);

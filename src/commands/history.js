@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const userTracking = require('../utils/userTracking.js');
+const statsManager = require('../utils/statsManager.js');
 const config = require('../config/config.js');
 
 module.exports = {
@@ -34,8 +34,8 @@ module.exports = {
             const limit = interaction.options.getInteger('limit') || 20;
             const filter = interaction.options.getString('filter') || 'all';
 
-            // Fetch user history
-            const history = await userTracking.getUserHistory(interaction.user.id, limit);
+            // Fetch user history using statsManager (uses Discord ID directly)
+            const history = await statsManager.getUserHistory(interaction.user.id, limit);
 
             if (!history || history.length === 0) {
                 const embed = new EmbedBuilder()
@@ -60,19 +60,19 @@ module.exports = {
             // Format history into fields
             const description = history.slice(0, limit).map((track, index) => {
                 const timeAgo = this.getTimeAgo(new Date(track.played_at));
-                return `**${index + 1}.** ${track.track_title} - ${track.track_artist}\n*${timeAgo} • ${track.skipped ? '⏭️ Skipped' : '✅ Completed'}*`;
+                const duration = track.duration_ms ? this.formatDuration(track.duration_ms) : '';
+                return `**${index + 1}.** ${track.track_title} - ${track.track_artist}\n*${timeAgo}${duration ? ` • ${duration}` : ''}*`;
             }).join('\n\n');
 
             embed.setDescription(description || 'No tracks found');
 
             // Add stats
             const totalTracks = history.length;
-            const completedTracks = history.filter(t => t.completed).length;
-            const skippedTracks = history.filter(t => t.skipped).length;
+            const totalDuration = history.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
 
             embed.addFields({
                 name: '📊 Stats',
-                value: `Total: ${totalTracks} • Completed: ${completedTracks} • Skipped: ${skippedTracks}`,
+                value: `Total: ${totalTracks} tracks • Duration: ${this.formatDuration(totalDuration)}`,
                 inline: false
             });
 
@@ -115,5 +115,19 @@ module.exports = {
         }
 
         return 'Just now';
+    },
+
+    formatDuration(ms) {
+        if (!ms || ms <= 0) return '';
+        const hours = Math.floor(ms / 3600000);
+        const minutes = Math.floor((ms % 3600000) / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds}s`;
+        }
+        return `${seconds}s`;
     }
 };

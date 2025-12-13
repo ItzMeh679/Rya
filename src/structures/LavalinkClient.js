@@ -613,16 +613,24 @@ class LavalinkClient {
                 genre: currentTrack.spotifyData?.genre || null
             };
 
-            // Get AI recommendations
+            // Get AI recommendations with Supabase history for better personalization
             let recommendations = [];
             try {
                 const recommendationsHelper = require('../utils/recommendationsHelper.js');
+                // Get the user ID from the last real user (not autoplay)
+                const requesterId = currentTrack.requester?.id !== 'autoplay'
+                    ? currentTrack.requester?.id
+                    : player.data.autoplayHistory?.find(t => t.requesterId)?.requesterId || null;
+
                 recommendations = await recommendationsHelper.getRecommendations(
                     trackInfo,
                     player.data.autoplayHistory.slice(-5), // Last 5 played tracks
-                    { count: 3 }
+                    {
+                        count: 3,
+                        userId: requesterId  // Enable Supabase history for personalized autoplay
+                    }
                 );
-                console.log(`[AUTOPLAY] Got ${recommendations?.length || 0} AI recommendations`);
+                console.log(`[AUTOPLAY] Got ${recommendations?.length || 0} AI recommendations (userId: ${requesterId || 'none'})`);
             } catch (recError) {
                 console.warn('[AUTOPLAY] AI recommendations failed:', recError.message);
                 recommendations = [];

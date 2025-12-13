@@ -258,6 +258,16 @@ module.exports = {
                 )
             )
         )
+        // Clear History
+        .addSubcommand(sub => sub
+            .setName('clearhistory')
+            .setDescription('Clear your saved listening history from database')
+            .addBooleanOption(opt => opt
+                .setName('confirm')
+                .setDescription('Skip confirmation prompt')
+                .setRequired(false)
+            )
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Connect | PermissionFlagsBits.Speak),
 
     cooldown: 2000,
@@ -270,7 +280,7 @@ module.exports = {
             const player = interaction.client.lavalink?.kazagumo?.players?.get(interaction.guildId);
 
             // Commands that don't need a player
-            const noPlayerCommands = ['play', 'recommend', 'help', 'stats', 'lyrics', 'history', 'prefix', 'mystats', 'toptrack', 'topartist', 'leaderboard'];
+            const noPlayerCommands = ['play', 'recommend', 'help', 'stats', 'lyrics', 'history', 'prefix', 'mystats', 'toptrack', 'topartist', 'leaderboard', 'clearhistory'];
 
             if (!noPlayerCommands.includes(subcommand) && !player) {
                 return interaction.reply({
@@ -307,6 +317,7 @@ module.exports = {
                 case 'toptrack': return await this.handleTopTracks(interaction);
                 case 'topartist': return await this.handleTopArtists(interaction);
                 case 'leaderboard': return await this.handleLeaderboard(interaction);
+                case 'clearhistory': return await this.handleClearHistory(interaction);
                 default:
                     return interaction.reply({ embeds: [this.errorEmbed('Unknown command')], ephemeral: true });
             }
@@ -598,7 +609,10 @@ module.exports = {
                 return interaction.editReply({ embeds: [this.errorEmbed('No track playing', 'Play a song first!')] });
             }
 
-            const recommendations = await recommendationsHelper.getRecommendations(currentTrack, [], { count: 5 });
+            const recommendations = await recommendationsHelper.getRecommendations(currentTrack, [], {
+                count: 5,
+                userId: interaction.user.id  // Enable Supabase history for personalization
+            });
 
             if (!recommendations?.length) {
                 return interaction.editReply({ embeds: [this.errorEmbed('No recommendations found')] });
@@ -777,22 +791,55 @@ module.exports = {
         await interaction.deferReply();
         const count = interaction.options.getInteger('count') || 10;
 
-        // Get history from player or session
-        const player = interaction.client.lavalink?.kazagumo?.players?.get(interaction.guildId);
-        const history = player?.data?.history || [];
+        // Get history from Supabase via statsManager
+        const statsManager = require('../utils/statsManager.js');
+        const supabaseHistory = await statsManager.getUserHistory(interaction.user.id, count);
 
-        if (history.length === 0) {
-            return interaction.editReply({ embeds: [this.errorEmbed('No history', 'Play some songs first!')] });
+        // Fall back to in-memory player history if Supabase has no data
+        if (!supabaseHistory || supabaseHistory.length === 0) {
+            const player = interaction.client.lavalink?.kazagumo?.players?.get(interaction.guildId);
+            const inMemoryHistory = player?.data?.history || [];
+
+            if (inMemoryHistory.length === 0) {
+                return interaction.editReply({ embeds: [this.errorEmbed('No history', 'Play some songs to build your listening history!')] });
+            }
+
+            const tracks = inMemoryHistory.slice(0, count);
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setColor(0x5865F2)
+                    .setTitle('📜 Session History')
+                    .setDescription(tracks.map((t, i) => `\`${i + 1}.\` **${t.title}** - ${t.author || 'Unknown'}`).join('\n'))
+                    .setFooter({ text: `Showing ${tracks.length} tracks (session only - Supabase not available)` })]
+            });
         }
 
-        const tracks = history.slice(0, count);
+        // Format Supabase history
+        const description = supabaseHistory.map((track, i) => {
+            const timeAgo = this.getTimeAgo(new Date(track.played_at));
+            return `\`${i + 1}.\` **${track.track_title}** - ${track.track_artist}\n*${timeAgo}*`;
+        }).join('\n\n');
+
         return interaction.editReply({
             embeds: [new EmbedBuilder()
                 .setColor(0x5865F2)
-                .setTitle('📜 Listening History')
-                .setDescription(tracks.map((t, i) => `\`${i + 1}.\` **${t.title}** - ${t.author || 'Unknown'}`).join('\n'))
-                .setFooter({ text: `Showing ${tracks.length} of ${history.length} tracks` })]
+                .setTitle('📜 Your Listening History')
+                .setDescription(description)
+                .setFooter({ text: `Showing ${supabaseHistory.length} tracks from Supabase` })]
         });
+    },
+
+    // Helper for time formatting
+    getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        const intervals = {
+            year: 31536000, month: 2592000, week: 604800, day: 86400, hour: 3600, minute: 60
+        };
+        for (const [name, value] of Object.entries(intervals)) {
+            const interval = Math.floor(seconds / value);
+            if (interval >= 1) return `${interval} ${name}${interval > 1 ? 's' : ''} ago`;
+        }
+        return 'Just now';
     },
 
     // ===== UTILITIES =====
@@ -1005,6 +1052,59 @@ module.exports = {
         } catch (error) {
             console.error('[LEADERBOARD] Error:', error);
             return interaction.editReply({ embeds: [this.errorEmbed('Error', error.message)] });
+        }
+    },
+
+    async handleClearHistory(interaction) {
+        const skipConfirmation = interaction.options.getBoolean('confirm') || false;
+        const statsManager = require('../utils/statsManager.js');
+
+        if (!skipConfirmation) {
+            // Show confirmation embed
+            const confirmEmbed = new EmbedBuilder()
+                .setColor(0xFEE75C)
+                .setTitle('⚠️ Clear Listening History')
+                .setDescription(
+                    '**Are you sure you want to clear your entire listening history?**\n\n' +
+                    '🗑️ This will permanently delete:\n' +
+                    '• All your tracked songs\n' +
+                    '• Your listening statistics\n' +
+                    '• Your top tracks data\n\n' +
+                    '⚠️ **This action cannot be undone!**\n\n' +
+                    'Use `/r clearhistory confirm:true` to confirm.'
+                )
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+        }
+
+        // User confirmed - proceed with clearing
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const result = await statsManager.clearUserHistory(interaction.user.id);
+
+            if (result.success) {
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0x00D166)
+                        .setTitle('✅ History Cleared')
+                        .setDescription(
+                            `Successfully cleared your listening history!\n\n` +
+                            `🗑️ **${result.count}** tracks removed from the database.`
+                        )
+                        .setTimestamp()]
+                });
+            } else {
+                return interaction.editReply({
+                    embeds: [this.errorEmbed('Failed to Clear', result.error || 'Unknown error')]
+                });
+            }
+        } catch (error) {
+            console.error('[CLEARHISTORY] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
         }
     }
 };

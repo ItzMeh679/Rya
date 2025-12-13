@@ -509,6 +509,52 @@ class StatsManager {
     clearCache() {
         this.cache.clear();
     }
+
+    /**
+     * Clear user's listening history
+     */
+    async clearUserHistory(userId) {
+        try {
+            const client = await supabaseClient.getClient();
+            if (!client) {
+                return { success: false, error: 'Database not connected', count: 0 };
+            }
+
+            // Count tracks before deletion
+            const { count: trackCount } = await client
+                .from('listening_history')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+
+            // Delete all history for this user
+            const { error: deleteHistoryError } = await client
+                .from('listening_history')
+                .delete()
+                .eq('user_id', userId);
+
+            if (deleteHistoryError) {
+                console.error('[STATS] Error clearing history:', deleteHistoryError.message);
+                return { success: false, error: deleteHistoryError.message, count: 0 };
+            }
+
+            // Also reset user_stats
+            const { error: deleteStatsError } = await client
+                .from('user_stats')
+                .delete()
+                .eq('user_id', userId);
+
+            if (deleteStatsError) {
+                console.warn('[STATS] Could not reset user stats:', deleteStatsError.message);
+            }
+
+            console.log(`[STATS] Cleared ${trackCount || 0} tracks for user ${userId}`);
+            return { success: true, count: trackCount || 0 };
+
+        } catch (error) {
+            console.error('[STATS] Error in clearUserHistory:', error.message);
+            return { success: false, error: error.message, count: 0 };
+        }
+    }
 }
 
 module.exports = new StatsManager();
