@@ -150,18 +150,6 @@ module.exports = {
                 )
             )
         )
-        // Bass
-        .addSubcommand(sub => sub
-            .setName('bass')
-            .setDescription('Adjust bass level')
-            .addIntegerOption(opt => opt
-                .setName('level')
-                .setDescription('Bass level (1-10)')
-                .setRequired(true)
-                .setMinValue(1)
-                .setMaxValue(10)
-            )
-        )
         // Seek
         .addSubcommand(sub => sub
             .setName('seek')
@@ -258,16 +246,6 @@ module.exports = {
                 )
             )
         )
-        // Clear History
-        .addSubcommand(sub => sub
-            .setName('clearhistory')
-            .setDescription('Clear your saved listening history from database')
-            .addBooleanOption(opt => opt
-                .setName('confirm')
-                .setDescription('Skip confirmation prompt')
-                .setRequired(false)
-            )
-        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Connect | PermissionFlagsBits.Speak),
 
     cooldown: 2000,
@@ -306,7 +284,6 @@ module.exports = {
                 case 'recommend': return await this.handleRecommend(interaction);
                 case 'lyrics': return await this.handleLyrics(interaction);
                 case 'fx': return await this.handleEffects(interaction, player);
-                case 'bass': return await this.handleBass(interaction, player);
                 case 'seek': return await this.handleSeek(interaction, player);
                 case 'remove': return await this.handleRemove(interaction, player);
                 case 'help': return await this.handleHelp(interaction);
@@ -317,7 +294,6 @@ module.exports = {
                 case 'toptrack': return await this.handleTopTracks(interaction);
                 case 'topartist': return await this.handleTopArtists(interaction);
                 case 'leaderboard': return await this.handleLeaderboard(interaction);
-                case 'clearhistory': return await this.handleClearHistory(interaction);
                 default:
                     return interaction.reply({ embeds: [this.errorEmbed('Unknown command')], ephemeral: true });
             }
