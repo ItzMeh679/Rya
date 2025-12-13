@@ -107,32 +107,71 @@ class LavalinkClient {
         this.kazagumo.on('playerStart', (player, track) => {
             console.log(`[LAVALINK] Started playing: ${track.title}`);
             this.onTrackStart(player, track);
+
+            // PROACTIVE AUTOPLAY: Check if we should add autoplay tracks
+            // Trigger when queue has 1 or fewer tracks to ensure continuity
+            try {
+                if (player.data?.autoplay && player.queue.length <= 1) {
+                    console.log(`[AUTOPLAY] Proactively adding track (queue: ${player.queue.length} remaining)`);
+                    this.addAutoplayTrack(player, track).catch(err => {
+                        console.warn('[AUTOPLAY] Proactive autoplay failed:', err.message);
+                    });
+                }
+            } catch (err) {
+                console.warn('[AUTOPLAY] Error checking autoplay condition:', err.message);
+            }
         });
 
+
         this.kazagumo.on('playerEnd', (player) => {
-            console.log(`[LAVALINK] Track ended for guild ${player.guildId}`);
-            this.onTrackEnd(player);
+            try {
+                console.log(`[LAVALINK] Track ended for guild ${player.guildId}`);
+                this.onTrackEnd(player);
+            } catch (err) {
+                console.error('[LAVALINK] Error in playerEnd handler:', err.message);
+            }
         });
 
         this.kazagumo.on('playerEmpty', (player) => {
-            console.log(`[LAVALINK] Queue empty for guild ${player.guildId}`);
-            this.onQueueEmpty(player);
+            try {
+                console.log(`[LAVALINK] Queue empty for guild ${player.guildId}`);
+                this.onQueueEmpty(player).catch(err => {
+                    console.error('[LAVALINK] Error in onQueueEmpty:', err.message);
+                });
+            } catch (err) {
+                console.error('[LAVALINK] Error in playerEmpty handler:', err.message);
+            }
         });
 
         this.kazagumo.on('playerError', (player, error) => {
-            console.error(`[LAVALINK] Player error for guild ${player.guildId}:`, error);
-            this.onPlayerError(player, error);
+            try {
+                console.error(`[LAVALINK] Player error for guild ${player.guildId}:`, error);
+                this.onPlayerError(player, error).catch(err => {
+                    console.error('[LAVALINK] Error in onPlayerError:', err.message);
+                });
+            } catch (err) {
+                console.error('[LAVALINK] Error in playerError handler:', err.message);
+            }
         });
 
         this.kazagumo.on('playerClosed', (player, data) => {
-            console.log(`[LAVALINK] Player closed for guild ${player.guildId}`);
+            try {
+                console.log(`[LAVALINK] Player closed for guild ${player.guildId}`);
+            } catch (err) {
+                console.error('[LAVALINK] Error in playerClosed handler:', err.message);
+            }
         });
 
         this.kazagumo.on('playerStuck', (player, data) => {
-            console.warn(`[LAVALINK] Player stuck for guild ${player.guildId}, skipping...`);
-            player.skip();
+            try {
+                console.warn(`[LAVALINK] Player stuck for guild ${player.guildId}, skipping...`);
+                player.skip();
+            } catch (err) {
+                console.error('[LAVALINK] Error in playerStuck handler:', err.message);
+            }
         });
     }
+
 
     /**
      * Create or get a player for a guild
@@ -483,20 +522,45 @@ class LavalinkClient {
      * Event handler: Queue is empty
      */
     async onQueueEmpty(player) {
-        const textChannel = this.client.channels.cache.get(player.textId);
-        if (!textChannel) return;
+        try {
+            const textChannel = this.client.channels.cache.get(player.textId);
 
-        // Auto-leave after timeout
-        setTimeout(() => {
-            const currentPlayer = this.kazagumo.players.get(player.guildId);
-            if (currentPlayer && currentPlayer.queue.length === 0 && !currentPlayer.playing) {
-                currentPlayer.destroy();
-                textChannel.send({
-                    content: '👋 Queue finished! Disconnecting due to inactivity.'
-                }).catch(() => { });
+            // AUTOPLAY BACKUP: If proactive autoplay missed, try now
+            if (player.data?.autoplay && player.queue.current) {
+                console.log('[AUTOPLAY] Queue empty backup - attempting to add track');
+                try {
+                    await this.addAutoplayTrack(player, player.queue.current);
+                    // If autoplay succeeded and added tracks, don't schedule auto-leave yet
+                    if (player.queue.length > 0) {
+                        console.log('[AUTOPLAY] Backup succeeded, continuing playback');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[AUTOPLAY] Backup autoplay failed:', err.message);
+                }
             }
-        }, config.music?.autoLeaveTimeout || 300000);
+
+            // Auto-leave after timeout
+            if (!textChannel) return;
+
+            setTimeout(() => {
+                try {
+                    const currentPlayer = this.kazagumo?.players?.get(player.guildId);
+                    if (currentPlayer && currentPlayer.queue.length === 0 && !currentPlayer.playing) {
+                        currentPlayer.destroy();
+                        textChannel.send({
+                            content: '👋 Queue finished! Disconnecting due to inactivity.'
+                        }).catch(() => { });
+                    }
+                } catch (err) {
+                    console.warn('[LAVALINK] Error in auto-leave timeout:', err.message);
+                }
+            }, config.music?.autoLeaveTimeout || 300000);
+        } catch (error) {
+            console.error('[LAVALINK] Error in onQueueEmpty:', error);
+        }
     }
+
 
     /**
      * Event handler: Player error
@@ -520,6 +584,178 @@ class LavalinkClient {
     }
 
     /**
+     * Add an autoplay track using AI recommendations with multiple fallbacks
+     * @param {Object} player - The Kazagumo player
+     * @param {Object} currentTrack - The currently playing track
+     */
+    async addAutoplayTrack(player, currentTrack) {
+        // Debounce mechanism - prevent multiple rapid calls
+        const now = Date.now();
+        if (!player.data) player.data = {};
+        if (player.data.lastAutoplayTime && now - player.data.lastAutoplayTime < 5000) {
+            console.log('[AUTOPLAY] Debounced - too soon since last autoplay');
+            return;
+        }
+        player.data.lastAutoplayTime = now;
+
+        // Track history to avoid duplicates
+        if (!player.data.autoplayHistory) {
+            player.data.autoplayHistory = [];
+        }
+
+        try {
+            const textChannel = this.client.channels.cache.get(player.textId);
+
+            // Build track info for recommendations
+            const trackInfo = {
+                title: currentTrack.title || currentTrack.spotifyData?.name || 'Unknown',
+                artist: currentTrack.author || currentTrack.spotifyData?.artist || 'Unknown',
+                genre: currentTrack.spotifyData?.genre || null
+            };
+
+            // Get AI recommendations
+            let recommendations = [];
+            try {
+                const recommendationsHelper = require('../utils/recommendationsHelper.js');
+                recommendations = await recommendationsHelper.getRecommendations(
+                    trackInfo,
+                    player.data.autoplayHistory.slice(-5), // Last 5 played tracks
+                    { count: 3 }
+                );
+                console.log(`[AUTOPLAY] Got ${recommendations?.length || 0} AI recommendations`);
+            } catch (recError) {
+                console.warn('[AUTOPLAY] AI recommendations failed:', recError.message);
+                recommendations = [];
+            }
+
+            // Filter out tracks we've recently played
+            const recentTitles = new Set(
+                player.data.autoplayHistory.slice(-10).map(t =>
+                    `${t.title || t.name}`.toLowerCase()
+                )
+            );
+            recentTitles.add(currentTrack.title?.toLowerCase());
+
+            recommendations = (recommendations || []).filter(rec =>
+                !recentTitles.has((rec.title || rec.name || '').toLowerCase())
+            );
+
+            // Try each recommendation
+            for (const rec of recommendations.slice(0, 3)) {
+                try {
+                    const query = rec.query || `${rec.artist} ${rec.title}`;
+                    console.log(`[AUTOPLAY] Searching for: "${query}"`);
+
+                    const result = await this.search(query, {
+                        requester: {
+                            id: 'autoplay',
+                            username: 'Autoplay',
+                            displayAvatarURL: () => null
+                        }
+                    });
+
+                    if (result?.tracks?.length > 0) {
+                        const track = result.tracks[0];
+                        player.queue.add(track);
+
+                        // Add to history
+                        player.data.autoplayHistory.push({
+                            title: track.title,
+                            artist: track.author
+                        });
+
+                        // Keep history manageable
+                        if (player.data.autoplayHistory.length > 50) {
+                            player.data.autoplayHistory = player.data.autoplayHistory.slice(-30);
+                        }
+
+                        console.log(`[AUTOPLAY] Added: ${track.title} by ${track.author}`);
+
+                        // Send notification
+                        if (textChannel) {
+                            textChannel.send({
+                                content: `🎲 **Autoplay:** Added **${track.title}** by **${track.author}**\n*${rec.reason || 'Similar to current track'}*`
+                            }).catch(() => { });
+                        }
+
+                        return; // Success!
+                    }
+                } catch (searchError) {
+                    console.warn(`[AUTOPLAY] Failed to search "${rec.title}":`, searchError.message);
+                    continue;
+                }
+            }
+
+            // FALLBACK 1: Search for similar artist
+            try {
+                const artistSearch = `${trackInfo.artist} popular`;
+                console.log(`[AUTOPLAY] Fallback: Searching artist "${artistSearch}"`);
+
+                const result = await this.search(artistSearch, {
+                    requester: { id: 'autoplay', username: 'Autoplay', displayAvatarURL: () => null }
+                });
+
+                if (result?.tracks?.length > 0) {
+                    // Find a track we haven't played
+                    const newTrack = result.tracks.find(t =>
+                        !recentTitles.has(t.title?.toLowerCase())
+                    ) || result.tracks[0];
+
+                    player.queue.add(newTrack);
+                    player.data.autoplayHistory.push({ title: newTrack.title, artist: newTrack.author });
+
+                    console.log(`[AUTOPLAY] Fallback added: ${newTrack.title}`);
+                    if (textChannel) {
+                        textChannel.send({
+                            content: `🎲 **Autoplay:** Added **${newTrack.title}** by **${newTrack.author}**\n*More from ${trackInfo.artist}*`
+                        }).catch(() => { });
+                    }
+                    return;
+                }
+            } catch (fallbackError) {
+                console.warn('[AUTOPLAY] Artist fallback failed:', fallbackError.message);
+            }
+
+            // FALLBACK 2: Popular tracks
+            try {
+                const popularQueries = [
+                    'top hits 2024',
+                    'popular songs',
+                    'trending music'
+                ];
+                const randomQuery = popularQueries[Math.floor(Math.random() * popularQueries.length)];
+                console.log(`[AUTOPLAY] Final fallback: "${randomQuery}"`);
+
+                const result = await this.search(randomQuery, {
+                    requester: { id: 'autoplay', username: 'Autoplay', displayAvatarURL: () => null }
+                });
+
+                if (result?.tracks?.length > 0) {
+                    const track = result.tracks[Math.floor(Math.random() * Math.min(5, result.tracks.length))];
+                    player.queue.add(track);
+                    player.data.autoplayHistory.push({ title: track.title, artist: track.author });
+
+                    console.log(`[AUTOPLAY] Popular fallback added: ${track.title}`);
+                    if (textChannel) {
+                        textChannel.send({
+                            content: `🎲 **Autoplay:** Added **${track.title}** by **${track.author}**`
+                        }).catch(() => { });
+                    }
+                    return;
+                }
+            } catch (popularError) {
+                console.warn('[AUTOPLAY] Popular fallback failed:', popularError.message);
+            }
+
+            console.error('[AUTOPLAY] All autoplay attempts failed');
+
+        } catch (error) {
+            console.error('[AUTOPLAY] Critical error in addAutoplayTrack:', error);
+            // Never throw - autoplay failure should not crash the bot
+        }
+    }
+
+    /**
      * Find the best matching track for a Spotify song
      * Uses intelligent matching to avoid remixes, covers, and wrong versions
      */
@@ -538,6 +774,7 @@ class LavalinkClient {
         // Original title words (for detecting extra words in results)
         const originalTitleWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
         const artistWords = artist.toLowerCase().split(/[,&]/)[0].trim().split(/\s+/).filter(w => w.length > 2);
+
 
         // Words that indicate a remix/cover/wrong version - EXPANDED LIST
         const excludePatterns = [

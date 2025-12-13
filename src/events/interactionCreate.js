@@ -1275,7 +1275,6 @@ async function handleLavalinkMusicControls(interaction, client) {
 
             case 'effects':
                 // Show effects selection menu
-                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
                 const effectsRow1 = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
