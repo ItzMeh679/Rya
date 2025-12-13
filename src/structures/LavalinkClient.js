@@ -777,35 +777,58 @@ class LavalinkClient {
         // ============================================================
         if (isrc) {
             console.log(`[LAVALINK] 🎯 Trying ISRC search: "${isrc}" for "${artist} - ${name}"`);
-            try {
-                // YouTube supports ISRC-based search for exact matching
-                const isrcResult = await this.kazagumo.search(`ytsearch:"${isrc}"`, { requester });
 
-                if (isrcResult?.tracks?.length > 0) {
-                    const track = isrcResult.tracks[0];
+            // Try multiple search strategies to find the exact audio version
+            const searchQueries = [
+                `ytsearch:"${isrc}"`,                           // Pure ISRC search
+                `ytsearch:${artist} ${name} audio`,             // Artist + Song + audio
+                `ytsearch:${artist} ${name} official audio`,    // Official audio version
+                `ytsearch:${artist} - Topic ${name}`,           // YouTube Music Topic channel
+            ];
 
-                    // Validate duration is within 5 seconds (strict exact match)
-                    const durationDiff = spotifyDuration ? Math.abs(track.length - spotifyDuration) : 0;
+            for (const query of searchQueries) {
+                try {
+                    console.log(`[LAVALINK] Searching: ${query}`);
+                    const searchResult = await this.kazagumo.search(query, { requester });
 
-                    if (!spotifyDuration || durationDiff < 5000) {
-                        console.log(`[LAVALINK] ✓ ISRC match found: ${track.title} (duration diff: ${Math.round(durationDiff / 1000)}s)`);
+                    if (searchResult?.tracks?.length > 0) {
+                        // Filter through results to find exact match
+                        for (const track of searchResult.tracks.slice(0, 5)) {
+                            const trackTitle = (track.title || '').toLowerCase();
 
-                        // Override thumbnail with Spotify's album cover art (higher quality)
-                        if (image) {
-                            track.thumbnail = image;
-                            console.log(`[LAVALINK] 🎨 Using Spotify cover art`);
+                            // Skip music videos (they have different durations)
+                            if (trackTitle.includes('official music video') ||
+                                trackTitle.includes('official video') ||
+                                trackTitle.includes('music video') ||
+                                trackTitle.includes('(video)')) {
+                                console.log(`[LAVALINK] ⏭️ Skipping video: ${track.title}`);
+                                continue;
+                            }
+
+                            // Check duration match (within 5 seconds)
+                            const durationDiff = spotifyDuration ? Math.abs(track.length - spotifyDuration) : 0;
+
+                            if (!spotifyDuration || durationDiff < 5000) {
+                                console.log(`[LAVALINK] ✓ Exact match found: ${track.title} (duration diff: ${Math.round(durationDiff / 1000)}s)`);
+
+                                // Override thumbnail with Spotify's album cover art
+                                if (image) {
+                                    track.thumbnail = image;
+                                    console.log(`[LAVALINK] 🎨 Using Spotify cover art`);
+                                }
+
+                                return track;
+                            } else {
+                                console.log(`[LAVALINK] ⚠️ Duration mismatch: ${track.title} (${Math.round(durationDiff / 1000)}s diff)`);
+                            }
                         }
-
-                        return track;
-                    } else {
-                        console.log(`[LAVALINK] ⚠️ ISRC match rejected - duration mismatch (${Math.round(durationDiff / 1000)}s diff)`);
                     }
-                } else {
-                    console.log(`[LAVALINK] ⚠️ ISRC search returned no results, falling back to name search`);
+                } catch (searchError) {
+                    console.warn(`[LAVALINK] Search failed for "${query}":`, searchError.message);
                 }
-            } catch (isrcError) {
-                console.warn(`[LAVALINK] ISRC search failed:`, isrcError.message);
             }
+
+            console.log(`[LAVALINK] ⚠️ No exact ISRC/audio match found, falling back to scoring method`);
         }
 
         // ============================================================
