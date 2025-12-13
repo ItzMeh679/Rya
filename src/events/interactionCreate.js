@@ -1443,71 +1443,147 @@ async function handleLavalinkMusicControls(interaction, client) {
                 break;
 
             case 'eq_bass':
+                // Bass Boost: Heavy sub-bass and bass, slight mid cut for punch
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 0, gain: 0.65 }, { band: 1, gain: 0.55 }, { band: 2, gain: 0.5 },
-                        { band: 3, gain: 0.35 }, { band: 4, gain: 0.15 }, { band: 5, gain: 0.05 }
+                        { band: 0, gain: 0.6 },   // 25Hz - Sub-bass rumble
+                        { band: 1, gain: 0.55 },  // 40Hz - Deep bass
+                        { band: 2, gain: 0.45 },  // 63Hz - Bass body
+                        { band: 3, gain: 0.3 },   // 100Hz - Upper bass
+                        { band: 4, gain: 0.15 },  // 160Hz - Warmth
+                        { band: 5, gain: 0.0 },   // 250Hz - Low mids
+                        { band: 6, gain: -0.1 },  // 400Hz - Mud cut
+                        { band: 7, gain: -0.1 },  // 630Hz - Mud cut
+                        { band: 8, gain: 0.0 },   // 1kHz - Mids
+                        { band: 9, gain: 0.0 },   // 1.6kHz - Mids
+                        { band: 10, gain: 0.0 },  // 2.5kHz - Presence
+                        { band: 11, gain: 0.0 },  // 4kHz - Clarity
+                        { band: 12, gain: 0.0 },  // 6.3kHz - Brilliance
+                        { band: 13, gain: 0.0 },  // 10kHz - Air
+                        { band: 14, gain: 0.0 }   // 16kHz - Sparkle
                     ]
                 });
-                await interaction.followUp({ content: '🔊 **Bass EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🔊 **Bass Boost EQ** applied! Deep, punchy bass.', ephemeral: true });
                 break;
 
             case 'eq_treble':
+                // Treble Boost: Crisp highs, clear presence, slight bass cut
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 10, gain: 0.35 }, { band: 11, gain: 0.45 }, { band: 12, gain: 0.55 },
-                        { band: 13, gain: 0.6 }, { band: 14, gain: 0.65 }
+                        { band: 0, gain: -0.15 },  // Cut sub-bass
+                        { band: 1, gain: -0.1 },   // Cut deep bass
+                        { band: 2, gain: -0.05 },  // Slight bass cut
+                        { band: 3, gain: 0.0 },
+                        { band: 4, gain: 0.0 },
+                        { band: 5, gain: 0.0 },
+                        { band: 6, gain: 0.05 },
+                        { band: 7, gain: 0.1 },
+                        { band: 8, gain: 0.15 },   // Vocal presence
+                        { band: 9, gain: 0.25 },   // Upper mids
+                        { band: 10, gain: 0.35 },  // Presence/clarity
+                        { band: 11, gain: 0.45 },  // Brilliance
+                        { band: 12, gain: 0.5 },   // High treble
+                        { band: 13, gain: 0.45 },  // Air
+                        { band: 14, gain: 0.4 }    // Sparkle
                     ]
                 });
-                await interaction.followUp({ content: '🔔 **Treble EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🔔 **Treble Boost EQ** applied! Crystal clear highs.', ephemeral: true });
                 break;
 
             case 'eq_rock':
+                // Rock: Punchy bass, scooped mids, aggressive highs for guitars
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 0, gain: 0.3 }, { band: 1, gain: 0.25 }, { band: 2, gain: 0.2 },
-                        { band: 3, gain: 0.15 }, { band: 4, gain: -0.05 }, { band: 5, gain: -0.1 },
-                        { band: 6, gain: 0.05 }, { band: 7, gain: 0.2 }, { band: 8, gain: 0.3 },
-                        { band: 9, gain: 0.35 }, { band: 10, gain: 0.4 }, { band: 11, gain: 0.3 }
+                        { band: 0, gain: 0.35 },   // Sub-bass punch
+                        { band: 1, gain: 0.3 },    // Bass thump
+                        { band: 2, gain: 0.2 },    // Bass body
+                        { band: 3, gain: 0.05 },   // Upper bass
+                        { band: 4, gain: -0.15 },  // Low-mid cut (reduce mud)
+                        { band: 5, gain: -0.2 },   // Mid scoop
+                        { band: 6, gain: -0.15 },  // Mid scoop
+                        { band: 7, gain: 0.0 },    // Neutral
+                        { band: 8, gain: 0.15 },   // Guitar presence
+                        { band: 9, gain: 0.3 },    // Guitar bite
+                        { band: 10, gain: 0.35 },  // Presence
+                        { band: 11, gain: 0.3 },   // Brilliance
+                        { band: 12, gain: 0.2 },   // High end
+                        { band: 13, gain: 0.1 },   // Air
+                        { band: 14, gain: 0.05 }   // Sparkle
                     ]
                 });
-                await interaction.followUp({ content: '🎸 **Rock EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🎸 **Rock EQ** applied! Punchy bass, aggressive mids.', ephemeral: true });
                 break;
 
             case 'eq_pop':
+                // Pop: Tight controlled bass, crystal clear vocals, sparkly treble
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 0, gain: -0.1 }, { band: 1, gain: 0.15 }, { band: 2, gain: 0.3 },
-                        { band: 3, gain: 0.35 }, { band: 4, gain: 0.25 }, { band: 5, gain: 0.05 },
-                        { band: 6, gain: -0.05 }, { band: 7, gain: -0.1 }, { band: 8, gain: 0.05 },
-                        { band: 9, gain: 0.15 }, { band: 10, gain: 0.2 }, { band: 11, gain: 0.2 }
+                        { band: 0, gain: -0.2 },   // Cut sub-bass rumble
+                        { band: 1, gain: -0.15 },  // Reduce deep bass
+                        { band: 2, gain: -0.05 },  // Slight bass reduction
+                        { band: 3, gain: 0.0 },    // Neutral low-mids
+                        { band: 4, gain: 0.1 },    // Warmth
+                        { band: 5, gain: 0.15 },   // Body
+                        { band: 6, gain: 0.2 },    // Vocal warmth
+                        { band: 7, gain: 0.25 },   // Vocal body
+                        { band: 8, gain: 0.3 },    // Vocal presence (key for pop)
+                        { band: 9, gain: 0.25 },   // Vocal clarity
+                        { band: 10, gain: 0.3 },   // Presence/brightness
+                        { band: 11, gain: 0.35 },  // Brilliance
+                        { band: 12, gain: 0.3 },   // High sparkle
+                        { band: 13, gain: 0.25 },  // Air
+                        { band: 14, gain: 0.2 }    // Top shimmer
                     ]
                 });
-                await interaction.followUp({ content: '🎤 **Pop EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🎤 **Pop EQ** applied! Clear vocals, bright and clean.', ephemeral: true });
                 break;
 
             case 'eq_electronic':
+                // Electronic/EDM: Heavy sub-bass, clear highs, punchy mids
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 0, gain: 0.5 }, { band: 1, gain: 0.4 }, { band: 2, gain: 0.1 },
-                        { band: 3, gain: -0.1 }, { band: 4, gain: 0.05 }, { band: 5, gain: 0.2 },
-                        { band: 6, gain: 0.35 }, { band: 7, gain: 0.4 }, { band: 8, gain: 0.45 },
-                        { band: 9, gain: 0.5 }, { band: 10, gain: 0.45 }, { band: 11, gain: 0.4 }
+                        { band: 0, gain: 0.55 },   // Sub-bass (essential for EDM)
+                        { band: 1, gain: 0.45 },   // Deep bass
+                        { band: 2, gain: 0.3 },    // Bass
+                        { band: 3, gain: 0.1 },    // Upper bass
+                        { band: 4, gain: -0.1 },   // Low-mid cut
+                        { band: 5, gain: -0.15 },  // Mud reduction
+                        { band: 6, gain: 0.0 },    // Neutral mids
+                        { band: 7, gain: 0.1 },    // Synth body
+                        { band: 8, gain: 0.2 },    // Synth presence
+                        { band: 9, gain: 0.35 },   // Lead presence
+                        { band: 10, gain: 0.4 },   // Brightness
+                        { band: 11, gain: 0.45 },  // Brilliance
+                        { band: 12, gain: 0.4 },   // Hi-hats
+                        { band: 13, gain: 0.35 },  // Air/shimmer
+                        { band: 14, gain: 0.3 }    // Top end sparkle
                     ]
                 });
-                await interaction.followUp({ content: '🎹 **Electronic EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🎹 **Electronic EQ** applied! Deep bass, crisp highs.', ephemeral: true });
                 break;
 
             case 'eq_classical':
+                // Classical: Natural, warm, balanced with slight emphasis on acoustic range
                 player.shoukaku.setFilters({
                     equalizer: [
-                        { band: 0, gain: 0.2 }, { band: 1, gain: 0.15 }, { band: 2, gain: 0.05 },
-                        { band: 3, gain: -0.05 }, { band: 4, gain: -0.1 }, { band: 5, gain: -0.15 },
-                        { band: 6, gain: -0.15 }, { band: 7, gain: -0.1 }, { band: 8, gap: -0.05 },
-                        { band: 9, gain: 0.05 }, { band: 10, gain: 0.15 }, { band: 11, gain: 0.25 }
+                        { band: 0, gain: 0.1 },    // Gentle sub-bass
+                        { band: 1, gain: 0.15 },   // Warm bass for cello/bass
+                        { band: 2, gain: 0.1 },    // Bass warmth
+                        { band: 3, gain: 0.05 },   // Natural low-mids
+                        { band: 4, gain: 0.0 },    // Neutral
+                        { band: 5, gain: -0.05 },  // Slight mud cut
+                        { band: 6, gain: 0.0 },    // Neutral mids
+                        { band: 7, gain: 0.05 },   // String body
+                        { band: 8, gain: 0.1 },    // Instrument presence
+                        { band: 9, gain: 0.15 },   // Detail
+                        { band: 10, gain: 0.2 },   // Clarity
+                        { band: 11, gain: 0.2 },   // Brilliance
+                        { band: 12, gain: 0.15 },  // Air
+                        { band: 13, gain: 0.1 },   // Natural top
+                        { band: 14, gain: 0.05 }   // Subtle sparkle
                     ]
                 });
-                await interaction.followUp({ content: '🎻 **Classical EQ** applied!', ephemeral: true });
+                await interaction.followUp({ content: '🎻 **Classical EQ** applied! Natural, warm, and balanced.', ephemeral: true });
                 break;
 
             case 'autoplay':
