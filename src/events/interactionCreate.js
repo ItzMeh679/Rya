@@ -730,7 +730,7 @@ async function handleFeaturesMenu(interaction, player) {
     featuresRow.addComponents(
         new ButtonBuilder()
             .setCustomId('equalizer')
-            .setEmoji('🎚️')
+            .setEmoji({ id: '1449318106534121493', name: 'equilizer' })
             .setLabel('Equalizer')
             .setStyle(ButtonStyle.Secondary)
     );

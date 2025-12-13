@@ -18,8 +18,8 @@ class SupabaseClient {
         }
 
         try {
-            const supabaseUrl = config.supabase?.url;
-            const supabaseKey = config.supabase?.anonKey;
+            const supabaseUrl = config.apis?.supabase?.url;
+            const supabaseKey = config.apis?.supabase?.anonKey;
 
             if (!supabaseUrl || !supabaseKey) {
                 console.warn('[SUPABASE] Not configured - user tracking disabled');

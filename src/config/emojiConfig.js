@@ -22,7 +22,7 @@ const EMOJI_CONFIG = {
         },
         pause: {
             id: '1412037507935240235',
-            name: 'Ryapause', 
+            name: 'Ryapause',
             animated: false,
             fallback: '⏸️'
         },
@@ -153,8 +153,8 @@ const EMOJI_CONFIG = {
             fallback: '🎛️'
         },
         equalizer: {
-            id: '1412037336299999295', // Updated with a real ID
-            name: 'Ryaequalizer',
+            id: '1449318106534121493',
+            name: 'equilizer',
             animated: false,
             fallback: '🎚️'
         }
@@ -169,12 +169,12 @@ const RYA_COLORS = {
     PRIMARY: 0x6366F1,          // Indigo-500 - Main brand color
     SECONDARY: 0x8B5CF6,        // Violet-500 - Secondary brand
     ACCENT: 0x06B6D4,           // Cyan-500 - Accent highlights
-    
+
     // Status colors  
     SUCCESS: 0x10B981,          // Emerald-500 - Success states
     WARNING: 0xF59E0B,          // Amber-500 - Warning states
     ERROR: 0xEF4444,            // Red-500 - Error states
-    
+
     // Feature-specific colors
     MUSIC: 0x6366F1,            // Indigo for music embeds
     QUEUE: 0x8B5CF6,            // Violet for queue
@@ -183,7 +183,7 @@ const RYA_COLORS = {
     HISTORY: 0x9333EA,          // Purple-500 for history
     VOLUME: 0x10B981,           // Emerald for volume
     LIVE: 0xEF4444,             // Red for live status
-    
+
     // Gradient colors for special effects
     GRADIENT_START: 0x06B6D4,   // Cyan
     GRADIENT_END: 0x8B5CF6      // Violet
@@ -195,7 +195,7 @@ const RYA_COLORS = {
 function buildEmoji(category, name) {
     const emoji = EMOJI_CONFIG[category]?.[name];
     if (!emoji || emoji.id === '1234567890123456789') return null;
-    
+
     if (emoji.animated) {
         return `<a:${emoji.name}:${emoji.id}>`;
     } else {
@@ -209,11 +209,11 @@ function buildEmoji(category, name) {
 function getEmoji(category, name, fallback = null) {
     const customEmoji = buildEmoji(category, name);
     if (customEmoji) return customEmoji;
-    
+
     // Try to find fallback in config
     const emoji = EMOJI_CONFIG[category]?.[name];
     if (emoji?.fallback) return emoji.fallback;
-    
+
     // Use provided fallback or default
     return fallback || '🎵';
 }
@@ -224,12 +224,12 @@ function getEmoji(category, name, fallback = null) {
 function getCategoryEmojis(category) {
     const categoryEmojis = EMOJI_CONFIG[category];
     if (!categoryEmojis) return {};
-    
+
     const result = {};
     Object.keys(categoryEmojis).forEach(name => {
         result[name] = getEmoji(category, name);
     });
-    
+
     return result;
 }
 
@@ -244,13 +244,13 @@ const RYA_EMOJIS = {
     skip: () => getEmoji('PLAYBACK', 'skip'),
     previous: () => getEmoji('PLAYBACK', 'previous'),
     replay: () => getEmoji('PLAYBACK', 'replay'),
-    
+
     // Queue controls
     queue: () => getEmoji('QUEUE', 'queue'),
     shuffle: () => getEmoji('QUEUE', 'shuffle'),
     loop: () => getEmoji('QUEUE', 'loop'),
     autoplay: () => getEmoji('QUEUE', 'autoplay'),
-    
+
     // Info and features
     lyrics: () => getEmoji('INFO', 'lyrics'),
     history: () => getEmoji('INFO', 'history'),
@@ -258,7 +258,7 @@ const RYA_EMOJIS = {
     views: () => getEmoji('INFO', 'views'),
     browse: () => getEmoji('INFO', 'browse'),
     live: () => getEmoji('INFO', 'live'),
-    
+
     // Audio controls
     sound: () => getEmoji('AUDIO', 'sound'),
     volume: () => getEmoji('AUDIO', 'volume'),
@@ -290,35 +290,35 @@ const VOLUME_EMOJIS = {
 function validateEmojiConfig() {
     const issues = [];
     let validCount = 0;
-    
+
     Object.keys(EMOJI_CONFIG).forEach(category => {
         Object.keys(EMOJI_CONFIG[category]).forEach(name => {
             const emoji = EMOJI_CONFIG[category][name];
-            
+
             // Check required fields
             if (!emoji.id || emoji.id === '1234567890123456789') {
                 issues.push(`${category}.${name}: Missing or placeholder emoji ID`);
             } else {
                 validCount++;
             }
-            
+
             if (!emoji.name) {
                 issues.push(`${category}.${name}: Missing emoji name`);
             }
-            
+
             if (!emoji.fallback) {
                 issues.push(`${category}.${name}: Missing fallback emoji`);
             }
         });
     });
-    
+
     if (issues.length > 0) {
         console.warn('[RYA EMOJIS] Configuration issues found:');
         issues.forEach(issue => console.warn(`  - ${issue}`));
         console.warn(`[RYA EMOJIS] ${validCount} emojis configured, ${issues.length} missing`);
         return false;
     }
-    
+
     console.log(`[RYA EMOJIS] All ${validCount} emojis configured correctly!`);
     return true;
 }
@@ -333,7 +333,7 @@ module.exports = {
     RYA_EMOJIS,
     VOLUME_EMOJIS,
     validateEmojiConfig,
-    
+
     // Legacy exports for compatibility
     QUICK_EMOJIS: RYA_EMOJIS,
     PREMIUM_COLORS: RYA_COLORS  // This ensures backward compatibility
