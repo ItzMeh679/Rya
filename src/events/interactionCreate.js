@@ -504,13 +504,13 @@ function createMusicActionRow(player) {
             .setStyle(ButtonStyle.Secondary)
     );
 
-    // Effects menu button with custom emoji
+    // Equalizer button with custom emoji (replaces Effects)
     secondaryControlRow.addComponents(
         new ButtonBuilder()
-            .setCustomId('effects')
-            .setEmoji(parseCustomEmoji(QUICK_EMOJIS.sound()) || '🎛️')
-            .setLabel('Effects')
-            .setStyle(state.currentEffect ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setCustomId('equalizer')
+            .setEmoji({ id: '1449318106534121493', name: 'equilizer' })
+            .setLabel('EQ')
+            .setStyle(ButtonStyle.Secondary)
     );
 
     // Autoplay toggle button with custom emoji
