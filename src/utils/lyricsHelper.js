@@ -11,12 +11,14 @@ class LyricsHelper {
 
         // Rate limiting
         this.rateLimits = {
+            lrclib: { requests: 0, resetTime: 0 },
             genius: { requests: 0, resetTime: 0 },
             lyricsapi: { requests: 0, resetTime: 0 }
         };
 
-        // Fallback sources
+        // Fallback sources - LRCLIB first (free, no scraping, synced lyrics)
         this.sources = [
+            { name: 'lrclib', priority: 0, withTimestamps: true },
             { name: 'genius', priority: 1, withTimestamps: true },
             { name: 'lyricsapi', priority: 2, withTimestamps: false },
             { name: 'musixmatch', priority: 3, withTimestamps: true }
@@ -234,6 +236,8 @@ class LyricsHelper {
         this.updateRateLimit(source);
 
         switch (source) {
+            case 'lrclib':
+                return await this.getLyricsFromLRCLIB(track, options);
             case 'genius':
                 return await this.getLyricsFromGenius(track, options);
             case 'lyricsapi':
@@ -242,6 +246,67 @@ class LyricsHelper {
                 return await this.getLyricsFromMusixmatch(track, options);
             default:
                 throw new Error(`Unknown lyrics source: ${source}`);
+        }
+    }
+
+    /**
+     * Get lyrics from LRCLIB (free, no API key, synced lyrics support)
+     * https://lrclib.net/docs
+     */
+    async getLyricsFromLRCLIB(track, options = {}) {
+        try {
+            const { title, artist } = track;
+
+            if (!title || !artist) {
+                throw new Error('Missing title or artist for LRCLIB search');
+            }
+
+            console.log(`[LYRICS] LRCLIB: Searching for "${title}" by "${artist}"`);
+
+            // LRCLIB API endpoint - simple GET request
+            const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
+
+            const response = await axios.get(url, {
+                headers: {
+                    'User-Agent': 'Rya-Discord-Bot/2.0 (https://github.com/ItzMeh679/Rya)'
+                },
+                timeout: 8000,
+                validateStatus: (status) => status < 500 // Don't throw on 404
+            });
+
+            // Handle 404 (not found)
+            if (response.status === 404 || !response.data) {
+                console.log(`[LYRICS] LRCLIB: No lyrics found for "${title}"`);
+                return null;
+            }
+
+            // Prefer synced lyrics (LRC format with timestamps), fall back to plain
+            const lyrics = response.data.syncedLyrics || response.data.plainLyrics;
+
+            if (!lyrics || lyrics.trim().length < 10) {
+                console.log(`[LYRICS] LRCLIB: Empty or too short lyrics for "${title}"`);
+                return null;
+            }
+
+            // If we got synced lyrics, strip the timestamps for display
+            // (they look like [00:12.34] at the start of each line)
+            let cleanLyrics = lyrics;
+            if (response.data.syncedLyrics) {
+                cleanLyrics = lyrics
+                    .split('\n')
+                    .map(line => line.replace(/^\[\d{2}:\d{2}\.\d{2,3}\]\s*/, ''))
+                    .filter(line => line.trim())
+                    .join('\n');
+                console.log(`[LYRICS] LRCLIB: Got synced lyrics for "${title}"`);
+            } else {
+                console.log(`[LYRICS] LRCLIB: Got plain lyrics for "${title}"`);
+            }
+
+            return cleanLyrics;
+
+        } catch (error) {
+            console.error('[LYRICS] LRCLIB error:', error.message);
+            throw new Error(`LRCLIB API error: ${error.message}`);
         }
     }
 
