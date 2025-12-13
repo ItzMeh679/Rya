@@ -42,7 +42,7 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId('clearhistory_cancel')
                         .setLabel('Cancel')
-                        .setEmoji('❌')
+                        .setEmoji({ id: '1449360152816914452', name: 'cancel' })
                         .setStyle(ButtonStyle.Secondary)
                 );
 

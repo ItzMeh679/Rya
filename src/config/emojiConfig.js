@@ -129,13 +129,25 @@ const EMOJI_CONFIG = {
             fallback: '🔊'
         },
         volume: {
-            id: '1412390624929513634', // Updated with a real ID
+            id: '1412390624929513634',
             name: 'Ryavolume',
             animated: false,
             fallback: '🔊'
         },
+        volUp: {
+            id: '1449360526957215827',
+            name: 'volUp',
+            animated: false,
+            fallback: '🔊'
+        },
+        volDown: {
+            id: '1449360491896897578',
+            name: 'volDown',
+            animated: false,
+            fallback: '🔉'
+        },
         mute: {
-            id: '1412390470587387986', // Updated with a real ID
+            id: '1412390470587387986',
             name: 'Ryamute',
             animated: false,
             fallback: '🔇'
@@ -157,6 +169,58 @@ const EMOJI_CONFIG = {
             name: 'equilizer',
             animated: false,
             fallback: '🎚️'
+        }
+    },
+
+    // Effect presets
+    EFFECTS: {
+        bass: {
+            id: '1449360435454152866',
+            name: 'Bass',
+            animated: false,
+            fallback: '🔊'
+        },
+        karaoke: {
+            id: '1449360390499860570',
+            name: 'karaoke',
+            animated: false,
+            fallback: '🎤'
+        },
+        nightcore: {
+            id: '1449360316222799912',
+            name: 'NightCore',
+            animated: false,
+            fallback: '🌙'
+        },
+        flat: {
+            id: '1449360356244979755',
+            name: 'Flat',
+            animated: false,
+            fallback: '➖'
+        },
+        treble: {
+            id: '1449360248577200138',
+            name: 'Treble',
+            animated: false,
+            fallback: '🔔'
+        },
+        rock: {
+            id: '1449360216167551087',
+            name: 'Roack',
+            animated: false,
+            fallback: '🎸'
+        },
+        classical: {
+            id: '1449360187919044618',
+            name: 'Classical',
+            animated: false,
+            fallback: '🎻'
+        },
+        cancel: {
+            id: '1449360152816914452',
+            name: 'cancel',
+            animated: false,
+            fallback: '❌'
         }
     }
 };

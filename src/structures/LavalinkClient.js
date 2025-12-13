@@ -470,11 +470,11 @@ class LavalinkClient {
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId('music_voldown')
-                        .setEmoji('🔉')
+                        .setEmoji(safeEmoji('1449360491896897578', 'volDown', '🔉'))
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId('music_volup')
-                        .setEmoji('🔊')
+                        .setEmoji(safeEmoji('1449360526957215827', 'volUp', '🔊'))
                         .setStyle(ButtonStyle.Secondary)
                 );
 
@@ -486,12 +486,12 @@ class LavalinkClient {
                         .setEmoji(safeEmoji('1412037745240707215', 'Ryaautoplay', '🎲'))
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
-                        .setCustomId('music_effects')
-                        .setEmoji(safeEmoji('1412388390602674326', 'Ryaeffects', '🎛️'))
+                        .setCustomId('music_equalizer')
+                        .setEmoji(safeEmoji('1449318106534121493', 'equilizer', '🎚️'))
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
-                        .setCustomId('music_equalizer')
-                        .setEmoji('🎚️')
+                        .setCustomId('music_effects')
+                        .setEmoji(safeEmoji('1412388390602674326', 'Ryaeffects', '🎛️'))
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId('music_history')

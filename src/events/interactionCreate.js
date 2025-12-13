@@ -1283,7 +1283,7 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_fx_bassboost')
                             .setLabel('Bass Boost')
-                            .setEmoji('🔊')
+                            .setEmoji({ id: '1449360435454152866', name: 'Bass' })
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setCustomId('music_fx_8d')
@@ -1293,12 +1293,12 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_fx_nightcore')
                             .setLabel('Nightcore')
-                            .setEmoji('🌙')
+                            .setEmoji({ id: '1449360316222799912', name: 'NightCore' })
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setCustomId('music_fx_karaoke')
                             .setLabel('Karaoke')
-                            .setEmoji('🎤')
+                            .setEmoji({ id: '1449360390499860570', name: 'karaoke' })
                             .setStyle(ButtonStyle.Primary)
                     );
                 const effectsRow2 = new ActionRowBuilder()
@@ -1321,7 +1321,7 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_fx_reset')
                             .setLabel('Reset All')
-                            .setEmoji('🔄')
+                            .setEmoji({ id: '1449360152816914452', name: 'cancel' })
                             .setStyle(ButtonStyle.Danger)
                     );
                 const fxEmbed = {
@@ -1394,22 +1394,22 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_eq_flat')
                             .setLabel('Flat')
-                            .setEmoji('➖')
+                            .setEmoji({ id: '1449360356244979755', name: 'Flat' })
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
                             .setCustomId('music_eq_bass')
                             .setLabel('Bass')
-                            .setEmoji('🔊')
+                            .setEmoji({ id: '1449360435454152866', name: 'Bass' })
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setCustomId('music_eq_treble')
                             .setLabel('Treble')
-                            .setEmoji('🔔')
+                            .setEmoji({ id: '1449360248577200138', name: 'Treble' })
                             .setStyle(ButtonStyle.Primary),
                         new ButtonBuilder()
                             .setCustomId('music_eq_rock')
                             .setLabel('Rock')
-                            .setEmoji('🎸')
+                            .setEmoji({ id: '1449360216167551087', name: 'Roack' })
                             .setStyle(ButtonStyle.Success)
                     );
                 const eqRow2 = new ActionRowBuilder()
@@ -1417,7 +1417,7 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_eq_pop')
                             .setLabel('Pop')
-                            .setEmoji('🎤')
+                            .setEmoji({ id: '1449360390499860570', name: 'karaoke' })
                             .setStyle(ButtonStyle.Success),
                         new ButtonBuilder()
                             .setCustomId('music_eq_electronic')
@@ -1427,7 +1427,7 @@ async function handleLavalinkMusicControls(interaction, client) {
                         new ButtonBuilder()
                             .setCustomId('music_eq_classical')
                             .setLabel('Classical')
-                            .setEmoji('🎻')
+                            .setEmoji({ id: '1449360187919044618', name: 'Classical' })
                             .setStyle(ButtonStyle.Secondary)
                     );
                 const eqEmbed = {
