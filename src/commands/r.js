@@ -413,7 +413,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setColor(RYA_COLORS?.SUCCESS || 0x10B981)
-                .setDescription(`${getEmoji('PLAYBACK', 'play') || '▶️'} **[${track.title}](${track.uri})**\n${getEmoji('INFO', 'stats') || '⏱️'} \`${this.formatDuration(track.length)}\`${playNext ? '  •  *Playing next*' : ''}`);
+                .setDescription(`${getEmoji('PLAYBACK', 'play') || '▶️'}  **[${track.title}](${track.uri})**\n\n${getEmoji('INFO', 'stats') || '⏱️'}  \`${this.formatDuration(track.length)}\`${playNext ? '        *Next up*' : ''}`);
 
             if (!player.playing && !player.paused) player.play();
             return interaction.editReply({ embeds: [embed] });

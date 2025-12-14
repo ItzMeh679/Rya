@@ -430,22 +430,10 @@ class LavalinkClient {
         const is247On = player.data?.mode247;
         const isPaused = player.paused;
 
-        // Create progress bar visual (aesthetic touch)
-        const progressBar = '━'.repeat(12);
+        // Create progress bar visual
+        const progressBar = '━'.repeat(14);
 
-        // Build clean description with status line - more spaced out
-        const statusLine = [
-            `${e('AUDIO', 'volume') || '🔊'} \`${player.volume}%\``,
-            `${e('QUEUE', 'queue') || '📑'} \`${player.queue.length}\``,
-            `${loopEmoji || '🔁'} \`${loopText}\``
-        ].join('    ');
-
-        const featuresLine = [
-            `${e('QUEUE', 'autoplay') || '🎲'} \`${autoplayOn ? 'ON' : 'OFF'}\``,
-            `${is247On ? '🔵' : '⚫'} \`24/7\``,
-            isPaused ? `${e('PLAYBACK', 'pause') || '⏸️'} \`Paused\`` : `${e('PLAYBACK', 'play') || '▶️'} \`Playing\``
-        ].join('    ');
-
+        // Build description with generous spacing
         const embed = new EmbedBuilder()
             .setColor(RYA_COLORS?.MUSIC || 0x6366F1)
             .setAuthor({
@@ -455,13 +443,18 @@ class LavalinkClient {
             .setTitle(track.title)
             .setURL(track.uri)
             .setDescription([
+                ``,
                 `**${track.author}**`,
                 ``,
-                `\`${this.formatDuration(player.position || 0)}\` ${progressBar} \`${this.formatDuration(track.length)}\``,
                 ``,
-                statusLine,
+                `\`${this.formatDuration(player.position || 0)}\`  ${progressBar}  \`${this.formatDuration(track.length)}\``,
                 ``,
-                featuresLine
+                ``,
+                `${e('AUDIO', 'volume') || '🔊'} \`${player.volume}%\`          ${e('QUEUE', 'queue') || '📑'} \`${player.queue.length}\`          ${loopEmoji || '🔁'} \`${loopText}\``,
+                ``,
+                ``,
+                `${e('QUEUE', 'autoplay') || '🎲'} \`${autoplayOn ? 'ON' : 'OFF'}\`          ${is247On ? '🔵' : '⚫'} \`24/7\`          ${isPaused ? (e('PLAYBACK', 'pause') || '⏸️') + ' `Paused`' : (e('PLAYBACK', 'play') || '▶️') + ' `Playing`'}`,
+                ``
             ].join('\n'))
             .setImage(track.thumbnail)
             .setFooter({
