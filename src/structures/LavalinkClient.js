@@ -446,14 +446,11 @@ class LavalinkClient {
                 ``,
                 `**${track.author}**`,
                 ``,
+                `\`${this.formatDuration(player.position || 0)}\` ${progressBar} \`${this.formatDuration(track.length)}\``,
                 ``,
-                `\`${this.formatDuration(player.position || 0)}\`  ${progressBar}  \`${this.formatDuration(track.length)}\``,
+                `${e('AUDIO', 'volume') || '🔊'}  \`${player.volume}%\`\u2003\u2003\u2003${e('QUEUE', 'queue') || '📑'}  \`${player.queue.length}\`\u2003\u2003\u2003${loopEmoji || '🔁'}  \`${loopText}\``,
                 ``,
-                ``,
-                `${e('AUDIO', 'volume') || '🔊'} \`${player.volume}%\`          ${e('QUEUE', 'queue') || '📑'} \`${player.queue.length}\`          ${loopEmoji || '🔁'} \`${loopText}\``,
-                ``,
-                ``,
-                `${e('QUEUE', 'autoplay') || '🎲'} \`${autoplayOn ? 'ON' : 'OFF'}\`          ${is247On ? '🔵' : '⚫'} \`24/7\`          ${isPaused ? (e('PLAYBACK', 'pause') || '⏸️') + ' `Paused`' : (e('PLAYBACK', 'play') || '▶️') + ' `Playing`'}`,
+                `${e('QUEUE', 'autoplay') || '🎲'}  \`${autoplayOn ? 'ON' : 'OFF'}\`\u2003\u2003\u2003${is247On ? '🔵' : '⚫'}  \`24/7\`\u2003\u2003\u2003${isPaused ? (e('PLAYBACK', 'pause') || '⏸️') + '  \`Paused\`' : (e('PLAYBACK', 'play') || '▶️') + '  \`Playing\`'}`,
                 ``
             ].join('\n'))
             .setImage(track.thumbnail)
