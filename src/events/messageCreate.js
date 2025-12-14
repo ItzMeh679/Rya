@@ -1,6 +1,8 @@
 // src/events/messageCreate.js - Handler for text prefix commands
 const { EmbedBuilder } = require('discord.js');
 const prefixManager = require('../utils/prefixManager.js');
+const adminCommands = require('../utils/adminCommands.js');
+const { formatDuration, getTimeAgo } = require('../utils/formatUtils.js');
 
 module.exports = {
     name: 'messageCreate',
@@ -9,7 +11,33 @@ module.exports = {
         // Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
-        // Parse message for prefix command
+        const content = message.content.trim();
+
+        // ===== ADMIN COMMANDS: .r <command> =====
+        if (content.startsWith('.r ')) {
+            const args = content.slice(3).trim().split(/\s+/);
+            const command = args.shift();
+
+            if (command) {
+                console.log(`[ADMIN CMD] ${message.author.tag}: .r ${command} ${args.join(' ')}`);
+                await adminCommands.execute(message, command, args);
+            }
+            return;
+        }
+
+        // ===== UTILITY COMMANDS: !r <command> =====
+        if (content.startsWith('!r ')) {
+            const args = content.slice(3).trim().split(/\s+/);
+            const command = args.shift()?.toLowerCase();
+
+            if (command) {
+                console.log(`[UTILITY CMD] ${message.author.tag}: !r ${command} ${args.join(' ')}`);
+                await handleUtilityCommand(message, command, args);
+            }
+            return;
+        }
+
+        // Parse message for prefix command (e.g., !rplay)
         const parsed = prefixManager.parseMessage(message.guild.id, message.content);
         if (!parsed) return;
 
@@ -375,4 +403,475 @@ function successEmbed(description) {
 
 function errorEmbed(title, description = '') {
     return new EmbedBuilder().setColor(0xED4245).setTitle(`❌ ${title}`).setDescription(description);
+}
+
+// ===== UTILITY COMMAND HANDLER (!r commands) =====
+
+async function handleUtilityCommand(message, command, args) {
+    try {
+        switch (command) {
+            case 'help':
+            case 'h':
+                await handleUtilityHelp(message);
+                break;
+
+            case 'toptrack':
+            case 'toptracks':
+            case 'top':
+                await handleTopTracks(message, args[0]);
+                break;
+
+            case 'topartist':
+            case 'topartists':
+                await handleTopArtists(message, args[0]);
+                break;
+
+            case 'leaderboard':
+            case 'lb':
+                await handleLeaderboard(message, args[0]);
+                break;
+
+            case 'tuto':
+            case 'tutorial':
+                await handleTutorial(message);
+                break;
+
+            case 'save':
+                await handleSavePlaylist(message, args.join(' '));
+                break;
+
+            case 'load':
+                await handleLoadPlaylist(message, args.join(' '));
+                break;
+
+            case 'playlists':
+            case 'myplaylists':
+                await handleViewPlaylists(message);
+                break;
+
+            default:
+                await message.reply({
+                    embeds: [errorEmbed('Unknown Command', `Use \`!r help\` to see available commands.`)]
+                });
+        }
+    } catch (error) {
+        console.error('[UTILITY CMD] Error:', error);
+        await message.reply({
+            embeds: [errorEmbed('Error', error.message)]
+        }).catch(() => { });
+    }
+}
+
+async function handleUtilityHelp(message) {
+    const embed = new EmbedBuilder()
+        .setColor(0x6366F1)
+        .setTitle('📖 Utility Commands')
+        .setDescription('Use `!r <command>` for these utility features:')
+        .addFields([
+            {
+                name: '📊 Statistics',
+                value: [
+                    '`!r toptrack [count]` - Your most played tracks',
+                    '`!r topartist [count]` - Your most played artists',
+                    '`!r leaderboard [server/global]` - Listening leaderboard'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📋 Playlists',
+                value: [
+                    '`!r save <name>` - Save current queue as playlist',
+                    '`!r load <name>` - Load a saved playlist',
+                    '`!r playlists` - View your saved playlists'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📖 Info',
+                value: [
+                    '`!r tuto` - Interactive tutorial',
+                    '`!r help` - This help message'
+                ].join('\n'),
+                inline: false
+            }
+        ])
+        .setFooter({ text: 'For music commands use /r or your custom prefix' })
+        .setTimestamp();
+
+    return message.reply({ embeds: [embed] });
+}
+
+async function handleTopTracks(message, countArg) {
+    const statsManager = require('../utils/statsManager.js');
+    const count = Math.min(20, Math.max(1, parseInt(countArg) || 10));
+
+    const tracks = await statsManager.getUserTopTracks(message.author.id, count);
+
+    if (!tracks || tracks.length === 0) {
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setColor(0xF59E0B)
+                .setTitle('📊 No Tracks Yet')
+                .setDescription('Listen to some music first! Your top tracks will appear here.')]
+        });
+    }
+
+    const description = tracks.map((t, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `\`${i + 1}.\``;
+        return `${medal} **${t.title || t.track_title}** - ${t.artist || t.track_artist}\n   *${t.plays || t.play_count} plays*`;
+    }).join('\n\n');
+
+    const embed = new EmbedBuilder()
+        .setColor(0xE91E63)
+        .setTitle('🎵 Your Top Tracks')
+        .setDescription(description)
+        .setThumbnail(message.author.displayAvatarURL())
+        .setFooter({ text: `Showing top ${tracks.length} tracks` })
+        .setTimestamp();
+
+    return message.reply({ embeds: [embed] });
+}
+
+async function handleTopArtists(message, countArg) {
+    const statsManager = require('../utils/statsManager.js');
+    const count = Math.min(20, Math.max(1, parseInt(countArg) || 10));
+
+    const artists = await statsManager.getUserTopArtists(message.author.id, count);
+
+    if (!artists || artists.length === 0) {
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setColor(0xF59E0B)
+                .setTitle('👤 No Artists Yet')
+                .setDescription('Listen to some music first! Your top artists will appear here.')]
+        });
+    }
+
+    const description = artists.map((a, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `\`${i + 1}.\``;
+        return `${medal} **${a.artist || a.artist_name}**\n   *${a.plays || a.play_count} plays*`;
+    }).join('\n\n');
+
+    const embed = new EmbedBuilder()
+        .setColor(0x9C27B0)
+        .setTitle('👤 Your Top Artists')
+        .setDescription(description)
+        .setThumbnail(message.author.displayAvatarURL())
+        .setFooter({ text: `Showing top ${artists.length} artists` })
+        .setTimestamp();
+
+    return message.reply({ embeds: [embed] });
+}
+
+async function handleLeaderboard(message, scope) {
+    const statsManager = require('../utils/statsManager.js');
+    const isGlobal = scope?.toLowerCase() === 'global';
+
+    let data;
+    if (isGlobal) {
+        data = await statsManager.getGlobalLeaderboard(10);
+    } else {
+        data = await statsManager.getServerLeaderboard(message.guild.id, 10);
+    }
+
+    if (!data || data.length === 0) {
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setColor(0xF59E0B)
+                .setTitle('🏆 No Data Yet')
+                .setDescription('No listening data available yet for the leaderboard.')]
+        });
+    }
+
+    const description = data.map((user, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `\`${i + 1}.\``;
+        const hours = Math.round((user.total_duration_ms || 0) / 3600000 * 10) / 10;
+        return `${medal} **${user.username || 'Unknown'}**\n   ${user.total_tracks || 0} tracks • ${hours}h listened`;
+    }).join('\n\n');
+
+    const embed = new EmbedBuilder()
+        .setColor(0xFFD700)
+        .setTitle(`🏆 ${isGlobal ? 'Global' : 'Server'} Leaderboard`)
+        .setDescription(description)
+        .setThumbnail(isGlobal ? message.client.user.displayAvatarURL() : message.guild.iconURL())
+        .setFooter({ text: `Top 10 ${isGlobal ? 'globally' : 'in this server'}` })
+        .setTimestamp();
+
+    return message.reply({ embeds: [embed] });
+}
+
+async function handleTutorial(message) {
+    const { RYA_EMOJIS, RYA_COLORS } = require('../config/emojiConfig.js');
+
+    const embed = new EmbedBuilder()
+        .setColor(RYA_COLORS?.PRIMARY || 0x6366F1)
+        .setTitle('📖 Rya Music Bot Tutorial')
+        .setDescription('**Quick guide to using the music bot!**')
+        .addFields([
+            {
+                name: '🎵 Playing Music',
+                value: [
+                    '`/r play <song>` - Play a song or playlist',
+                    '`/r play spotify:playlist:...` - Play Spotify playlist',
+                    '`/r play https://youtube.com/...` - Play YouTube video'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '🎛️ Controls',
+                value: [
+                    '`/r skip` - Skip current song',
+                    '`/r pause` / `/r resume` - Pause/resume',
+                    '`/r queue` - View queue',
+                    '`/r shuffle` - Shuffle queue'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '✨ Special Features',
+                value: [
+                    '`/r autoplay` - AI adds similar songs',
+                    '`/r lyrics` - Get song lyrics',
+                    '`/r fx` - Audio effects (nightcore, 8D, etc.)',
+                    '`/r recommend` - AI song recommendations'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📊 Your Stats',
+                value: [
+                    '`/r mystats` - Your listening stats',
+                    '`!r toptrack` - Most played songs',
+                    '`!r topartist` - Most played artists'
+                ].join('\n'),
+                inline: false
+            }
+        ])
+        .setFooter({ text: 'Use /r help for full command list' })
+        .setTimestamp();
+
+    return message.reply({ embeds: [embed] });
+}
+
+async function handleSavePlaylist(message, name) {
+    if (!name || name.trim().length === 0) {
+        return message.reply({
+            embeds: [errorEmbed('Missing Name', 'Usage: `!r save <playlist name>`')]
+        });
+    }
+
+    const player = message.client.lavalink?.kazagumo?.players?.get(message.guildId);
+    if (!player?.queue?.current) {
+        return message.reply({
+            embeds: [errorEmbed('No Queue', 'Play some music first to save a playlist!')]
+        });
+    }
+
+    // Get current queue
+    const queue = player.queue;
+    const tracks = [];
+
+    if (queue.current) {
+        tracks.push({
+            title: queue.current.title,
+            uri: queue.current.uri,
+            author: queue.current.author,
+            length: queue.current.length
+        });
+    }
+
+    queue.forEach(track => {
+        tracks.push({
+            title: track.title,
+            uri: track.uri,
+            author: track.author,
+            length: track.length
+        });
+    });
+
+    if (tracks.length === 0) {
+        return message.reply({
+            embeds: [errorEmbed('Empty Queue', 'No tracks to save!')]
+        });
+    }
+
+    // Save to Supabase (simplified - will be enhanced in Phase 5)
+    try {
+        const supabaseClient = require('../utils/supabaseClient.js');
+        const client = await supabaseClient.getClient();
+
+        if (!client) {
+            return message.reply({
+                embeds: [errorEmbed('Database Error', 'Supabase not configured. Playlist saving requires database.')]
+            });
+        }
+
+        const { error } = await client
+            .from('user_playlists')
+            .upsert({
+                user_id: message.author.id,
+                playlist_name: name.trim().substring(0, 50),
+                tracks: tracks.slice(0, 50), // Limit to 50 tracks
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,playlist_name'
+            });
+
+        if (error) throw error;
+
+        return message.reply({
+            embeds: [successEmbed(`📋 Saved playlist **${name}** with ${tracks.length} tracks!`)]
+        });
+
+    } catch (error) {
+        console.error('[SAVE PLAYLIST] Error:', error);
+        return message.reply({
+            embeds: [errorEmbed('Save Failed', error.message)]
+        });
+    }
+}
+
+async function handleLoadPlaylist(message, name) {
+    if (!name || name.trim().length === 0) {
+        return message.reply({
+            embeds: [errorEmbed('Missing Name', 'Usage: `!r load <playlist name>`')]
+        });
+    }
+
+    const voiceChannel = message.member?.voice?.channel;
+    if (!voiceChannel) {
+        return message.reply({
+            embeds: [errorEmbed('Join Voice Channel', 'Join a voice channel first!')]
+        });
+    }
+
+    try {
+        const supabaseClient = require('../utils/supabaseClient.js');
+        const client = await supabaseClient.getClient();
+
+        if (!client) {
+            return message.reply({
+                embeds: [errorEmbed('Database Error', 'Supabase not configured.')]
+            });
+        }
+
+        const { data, error } = await client
+            .from('user_playlists')
+            .select('*')
+            .eq('user_id', message.author.id)
+            .eq('playlist_name', name.trim())
+            .single();
+
+        if (error || !data) {
+            return message.reply({
+                embeds: [errorEmbed('Not Found', `Playlist **${name}** not found. Use \`!r playlists\` to see your playlists.`)]
+            });
+        }
+
+        const tracks = data.tracks || [];
+        if (tracks.length === 0) {
+            return message.reply({
+                embeds: [errorEmbed('Empty Playlist', 'This playlist has no tracks.')]
+            });
+        }
+
+        // Create/get player
+        const lavalink = message.client.lavalink;
+        let player = lavalink.kazagumo.players.get(message.guildId);
+
+        if (!player) {
+            player = await lavalink.kazagumo.createPlayer({
+                guildId: message.guildId,
+                textId: message.channelId,
+                voiceId: voiceChannel.id,
+                volume: 100,
+                deaf: true
+            });
+        }
+
+        // Load tracks
+        let loaded = 0;
+        for (const track of tracks.slice(0, 50)) {
+            try {
+                const result = await lavalink.search(track.uri || track.title, { requester: message.author });
+                if (result?.tracks?.[0]) {
+                    player.queue.add(result.tracks[0]);
+                    loaded++;
+                }
+            } catch (e) {
+                console.warn('[LOAD PLAYLIST] Failed to load track:', track.title);
+            }
+        }
+
+        if (!player.playing && !player.paused) player.play();
+
+        // Update play count
+        await client
+            .from('user_playlists')
+            .update({ play_count: (data.play_count || 0) + 1 })
+            .eq('id', data.id);
+
+        return message.reply({
+            embeds: [successEmbed(`📋 Loaded **${data.playlist_name}** - ${loaded}/${tracks.length} tracks added!`)]
+        });
+
+    } catch (error) {
+        console.error('[LOAD PLAYLIST] Error:', error);
+        return message.reply({
+            embeds: [errorEmbed('Load Failed', error.message)]
+        });
+    }
+}
+
+async function handleViewPlaylists(message) {
+    try {
+        const supabaseClient = require('../utils/supabaseClient.js');
+        const client = await supabaseClient.getClient();
+
+        if (!client) {
+            return message.reply({
+                embeds: [errorEmbed('Database Error', 'Supabase not configured.')]
+            });
+        }
+
+        const { data, error } = await client
+            .from('user_playlists')
+            .select('*')
+            .eq('user_id', message.author.id)
+            .order('updated_at', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            return message.reply({
+                embeds: [new EmbedBuilder()
+                    .setColor(0xF59E0B)
+                    .setTitle('📋 No Playlists')
+                    .setDescription('You haven\'t saved any playlists yet!\n\nUse `!r save <name>` while music is playing to save your queue.')]
+            });
+        }
+
+        const description = data.map((p, i) => {
+            const trackCount = p.tracks?.length || 0;
+            const ago = getTimeAgo(new Date(p.updated_at));
+            return `**${i + 1}. ${p.playlist_name}**\n   ${trackCount} tracks • ${p.play_count || 0} plays • ${ago}`;
+        }).join('\n\n');
+
+        const embed = new EmbedBuilder()
+            .setColor(0x6366F1)
+            .setTitle('📋 Your Playlists')
+            .setDescription(description)
+            .setThumbnail(message.author.displayAvatarURL())
+            .setFooter({ text: `Use !r load <name> to play a playlist` })
+            .setTimestamp();
+
+        return message.reply({ embeds: [embed] });
+
+    } catch (error) {
+        console.error('[VIEW PLAYLISTS] Error:', error);
+        return message.reply({
+            embeds: [errorEmbed('Error', error.message)]
+        });
+    }
 }

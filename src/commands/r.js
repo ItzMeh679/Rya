@@ -1,12 +1,16 @@
 // src/commands/r.js - Unified Rya bot command with single /r prefix
+// 25 Subcommands MAX (Discord limit) - Admin/Utility moved to .r and !r
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('../config/config.js');
+const { formatDuration, formatUptime, createProgressBar } = require('../utils/formatUtils.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('r')
-        .setDescription('🎵 Rya Music Bot - All commands')
-        // Play
+        .setDescription('🎵 Rya Music Bot - All music commands')
+
+        // ===== PLAYBACK (7) =====
+        // 1. Play
         .addSubcommand(sub => sub
             .setName('play')
             .setDescription('Play a song or playlist')
@@ -26,7 +30,7 @@ module.exports = {
                 .setRequired(false)
             )
         )
-        // Skip
+        // 2. Skip
         .addSubcommand(sub => sub
             .setName('skip')
             .setDescription('Skip the current track')
@@ -38,7 +42,39 @@ module.exports = {
                 .setMaxValue(10)
             )
         )
-        // Queue
+        // 3. Pause
+        .addSubcommand(sub => sub
+            .setName('pause')
+            .setDescription('Pause playback')
+        )
+        // 4. Resume
+        .addSubcommand(sub => sub
+            .setName('resume')
+            .setDescription('Resume playback')
+        )
+        // 5. Stop
+        .addSubcommand(sub => sub
+            .setName('stop')
+            .setDescription('Stop playback and disconnect')
+        )
+        // 6. Seek
+        .addSubcommand(sub => sub
+            .setName('seek')
+            .setDescription('Seek to position in track')
+            .addStringOption(opt => opt
+                .setName('time')
+                .setDescription('Time (e.g., 1:30 or 90)')
+                .setRequired(true)
+            )
+        )
+        // 7. Previous (NEW)
+        .addSubcommand(sub => sub
+            .setName('previous')
+            .setDescription('Play previous track from history')
+        )
+
+        // ===== QUEUE (5) =====
+        // 8. Queue
         .addSubcommand(sub => sub
             .setName('queue')
             .setDescription('View the current queue')
@@ -49,39 +85,28 @@ module.exports = {
                 .setMinValue(1)
             )
         )
-        // Volume
+        // 9. Shuffle
         .addSubcommand(sub => sub
-            .setName('vol')
-            .setDescription('Set playback volume')
+            .setName('shuffle')
+            .setDescription('Shuffle the queue')
+        )
+        // 10. Clear
+        .addSubcommand(sub => sub
+            .setName('clear')
+            .setDescription('Clear the queue')
+        )
+        // 11. Remove
+        .addSubcommand(sub => sub
+            .setName('remove')
+            .setDescription('Remove a track from queue')
             .addIntegerOption(opt => opt
-                .setName('level')
-                .setDescription('Volume level (0-150)')
+                .setName('position')
+                .setDescription('Position in queue (1-based)')
                 .setRequired(true)
-                .setMinValue(0)
-                .setMaxValue(150)
+                .setMinValue(1)
             )
         )
-        // Now Playing
-        .addSubcommand(sub => sub
-            .setName('np')
-            .setDescription('Show current track info')
-        )
-        // Stop
-        .addSubcommand(sub => sub
-            .setName('stop')
-            .setDescription('Stop playback and disconnect')
-        )
-        // Pause
-        .addSubcommand(sub => sub
-            .setName('pause')
-            .setDescription('Pause playback')
-        )
-        // Resume
-        .addSubcommand(sub => sub
-            .setName('resume')
-            .setDescription('Resume playback')
-        )
-        // Loop
+        // 12. Loop
         .addSubcommand(sub => sub
             .setName('loop')
             .setDescription('Set loop mode')
@@ -96,27 +121,105 @@ module.exports = {
                 )
             )
         )
-        // Shuffle
+
+        // ===== AUDIO (5) =====
+        // 13. Volume
         .addSubcommand(sub => sub
-            .setName('shuffle')
-            .setDescription('Shuffle the queue')
+            .setName('vol')
+            .setDescription('Set playback volume')
+            .addIntegerOption(opt => opt
+                .setName('level')
+                .setDescription('Volume level (0-150)')
+                .setRequired(true)
+                .setMinValue(0)
+                .setMaxValue(150)
+            )
         )
-        // Clear
+        // 14. Effects
         .addSubcommand(sub => sub
-            .setName('clear')
-            .setDescription('Clear the queue')
+            .setName('fx')
+            .setDescription('Apply audio effects')
+            .addStringOption(opt => opt
+                .setName('effect')
+                .setDescription('Effect to apply')
+                .setRequired(true)
+                .addChoices(
+                    { name: '🔊 Bass Boost', value: 'bass' },
+                    { name: '🎵 Nightcore', value: 'nightcore' },
+                    { name: '🌊 Slowed + Reverb', value: 'slowed' },
+                    { name: '🎧 8D Audio', value: '8d' },
+                    { name: '📻 Lo-Fi', value: 'lofi' },
+                    { name: '🌈 Vaporwave', value: 'vaporwave' },
+                    { name: '💀 Phonk', value: 'phonk' },
+                    { name: '🎤 Karaoke', value: 'karaoke' },
+                    { name: '❌ Clear All', value: 'clear' }
+                )
+            )
         )
-        // Autoplay
+        // 15. Bass (NEW)
+        .addSubcommand(sub => sub
+            .setName('bass')
+            .setDescription('Set bass boost level')
+            .addIntegerOption(opt => opt
+                .setName('level')
+                .setDescription('Bass level (0-10)')
+                .setRequired(true)
+                .setMinValue(0)
+                .setMaxValue(10)
+            )
+        )
+        // 16. Quality (NEW)
+        .addSubcommand(sub => sub
+            .setName('quality')
+            .setDescription('Set audio quality')
+            .addStringOption(opt => opt
+                .setName('level')
+                .setDescription('Audio quality level')
+                .setRequired(true)
+                .addChoices(
+                    { name: '📶 Low (64kbps) - Data Saver', value: 'low' },
+                    { name: '📶📶 Medium (128kbps) - Balanced', value: 'medium' },
+                    { name: '📶📶📶 High (256kbps) - Default', value: 'high' },
+                    { name: '📶📶📶📶 Ultra (320kbps) - Best', value: 'ultra' },
+                    { name: '🎼 Studio (FLAC) - Lossless', value: 'studio' }
+                )
+            )
+        )
+        // 17. Equalizer (NEW)
+        .addSubcommand(sub => sub
+            .setName('eq')
+            .setDescription('Apply equalizer preset')
+            .addStringOption(opt => opt
+                .setName('preset')
+                .setDescription('EQ preset to apply')
+                .setRequired(true)
+                .addChoices(
+                    { name: '🎚️ Flat - Default', value: 'flat' },
+                    { name: '🔊 Bass Head', value: 'bass_head' },
+                    { name: '✨ Treble Boost', value: 'treble' },
+                    { name: '🎤 Vocal', value: 'vocal' },
+                    { name: '🎸 Rock', value: 'rock' },
+                    { name: '🎹 Classical', value: 'classical' },
+                    { name: '🎧 Electronic', value: 'electronic' },
+                    { name: '🎺 Jazz', value: 'jazz' },
+                    { name: '🎵 Pop', value: 'pop' },
+                    { name: '💿 R&B', value: 'rnb' }
+                )
+            )
+        )
+
+        // ===== AI & FEATURES (5) =====
+        // 18. Autoplay
         .addSubcommand(sub => sub
             .setName('autoplay')
             .setDescription('Toggle AI autoplay')
         )
-        // Recommend
+        // 19. Recommend
         .addSubcommand(sub => sub
             .setName('recommend')
             .setDescription('Get AI music recommendations')
         )
-        // Lyrics
+        // 20. Lyrics
         .addSubcommand(sub => sub
             .setName('lyrics')
             .setDescription('Get lyrics for current or specified song')
@@ -131,57 +234,24 @@ module.exports = {
                 .setRequired(false)
             )
         )
-        // Effects
+        // 21. Now Playing
         .addSubcommand(sub => sub
-            .setName('fx')
-            .setDescription('Apply audio effects')
-            .addStringOption(opt => opt
-                .setName('effect')
-                .setDescription('Effect to apply')
-                .setRequired(true)
-                .addChoices(
-                    { name: '🔊 Bass Boost', value: 'bass' },
-                    { name: '🎵 Nightcore', value: 'nightcore' },
-                    { name: '🌊 Slowed + Reverb', value: 'slowed' },
-                    { name: '🎧 8D Audio', value: '8d' },
-                    { name: '📻 Lo-Fi', value: 'lofi' },
-                    { name: '🎤 Karaoke', value: 'karaoke' },
-                    { name: '❌ Clear All', value: 'clear' }
-                )
-            )
+            .setName('np')
+            .setDescription('Show current track info')
         )
-        // Seek
+        // 22. 24/7 Mode (NEW)
         .addSubcommand(sub => sub
-            .setName('seek')
-            .setDescription('Seek to position in track')
-            .addStringOption(opt => opt
-                .setName('time')
-                .setDescription('Time (e.g., 1:30 or 90)')
-                .setRequired(true)
-            )
+            .setName('247')
+            .setDescription('Toggle 24/7 mode (stay in voice channel)')
         )
-        // Remove
+
+        // ===== USER DATA (3) =====
+        // 23. My Stats
         .addSubcommand(sub => sub
-            .setName('remove')
-            .setDescription('Remove a track from queue')
-            .addIntegerOption(opt => opt
-                .setName('position')
-                .setDescription('Position in queue (1-based)')
-                .setRequired(true)
-                .setMinValue(1)
-            )
+            .setName('mystats')
+            .setDescription('View your personal listening statistics')
         )
-        // Help
-        .addSubcommand(sub => sub
-            .setName('help')
-            .setDescription('Show all commands')
-        )
-        // Stats
-        .addSubcommand(sub => sub
-            .setName('stats')
-            .setDescription('Show bot statistics')
-        )
-        // History
+        // 24. History
         .addSubcommand(sub => sub
             .setName('history')
             .setDescription('View listening history')
@@ -193,59 +263,17 @@ module.exports = {
                 .setMaxValue(25)
             )
         )
-        // Set Prefix
+        // 25. Clear History (NEW)
         .addSubcommand(sub => sub
-            .setName('prefix')
-            .setDescription('Set custom text prefix for this server')
-            .addStringOption(opt => opt
-                .setName('new_prefix')
-                .setDescription('New prefix (e.g., !m, .r, $)')
-                .setRequired(true)
-            )
-        )
-        // My Stats
-        .addSubcommand(sub => sub
-            .setName('mystats')
-            .setDescription('View your personal listening statistics')
-        )
-        // Top Tracks
-        .addSubcommand(sub => sub
-            .setName('toptrack')
-            .setDescription('View your most played tracks')
-            .addIntegerOption(opt => opt
-                .setName('count')
-                .setDescription('Number of tracks to show (1-20)')
+            .setName('clearhistory')
+            .setDescription('Clear your listening history')
+            .addBooleanOption(opt => opt
+                .setName('confirm')
+                .setDescription('Confirm deletion (set to true)')
                 .setRequired(false)
-                .setMinValue(1)
-                .setMaxValue(20)
             )
         )
-        // Top Artists
-        .addSubcommand(sub => sub
-            .setName('topartist')
-            .setDescription('View your most played artists')
-            .addIntegerOption(opt => opt
-                .setName('count')
-                .setDescription('Number of artists to show (1-20)')
-                .setRequired(false)
-                .setMinValue(1)
-                .setMaxValue(20)
-            )
-        )
-        // Leaderboard
-        .addSubcommand(sub => sub
-            .setName('leaderboard')
-            .setDescription('View listening leaderboard')
-            .addStringOption(opt => opt
-                .setName('scope')
-                .setDescription('Leaderboard scope')
-                .setRequired(false)
-                .addChoices(
-                    { name: '🏠 Server', value: 'server' },
-                    { name: '🌍 Global', value: 'global' }
-                )
-            )
-        )
+
         .setDefaultMemberPermissions(PermissionFlagsBits.Connect | PermissionFlagsBits.Speak),
 
     cooldown: 2000,
@@ -258,7 +286,7 @@ module.exports = {
             const player = interaction.client.lavalink?.kazagumo?.players?.get(interaction.guildId);
 
             // Commands that don't need a player
-            const noPlayerCommands = ['play', 'recommend', 'help', 'stats', 'lyrics', 'history', 'prefix', 'mystats', 'toptrack', 'topartist', 'leaderboard', 'clearhistory'];
+            const noPlayerCommands = ['play', 'recommend', 'lyrics', 'history', 'mystats', 'clearhistory'];
 
             if (!noPlayerCommands.includes(subcommand) && !player) {
                 return interaction.reply({
@@ -269,31 +297,41 @@ module.exports = {
 
             // Route to handlers
             switch (subcommand) {
+                // PLAYBACK
                 case 'play': return await this.handlePlay(interaction);
                 case 'skip': return await this.handleSkip(interaction, player);
-                case 'queue': return await this.handleQueue(interaction, player);
-                case 'vol': return await this.handleVolume(interaction, player);
-                case 'np': return await this.handleNowPlaying(interaction, player);
-                case 'stop': return await this.handleStop(interaction, player);
                 case 'pause': return await this.handlePause(interaction, player);
                 case 'resume': return await this.handleResume(interaction, player);
-                case 'loop': return await this.handleLoop(interaction, player);
+                case 'stop': return await this.handleStop(interaction, player);
+                case 'seek': return await this.handleSeek(interaction, player);
+                case 'previous': return await this.handlePrevious(interaction, player);
+
+                // QUEUE
+                case 'queue': return await this.handleQueue(interaction, player);
                 case 'shuffle': return await this.handleShuffle(interaction, player);
                 case 'clear': return await this.handleClear(interaction, player);
+                case 'remove': return await this.handleRemove(interaction, player);
+                case 'loop': return await this.handleLoop(interaction, player);
+
+                // AUDIO
+                case 'vol': return await this.handleVolume(interaction, player);
+                case 'fx': return await this.handleEffects(interaction, player);
+                case 'bass': return await this.handleBass(interaction, player);
+                case 'quality': return await this.handleQuality(interaction, player);
+                case 'eq': return await this.handleEqualizer(interaction, player);
+
+                // AI & FEATURES
                 case 'autoplay': return await this.handleAutoplay(interaction, player);
                 case 'recommend': return await this.handleRecommend(interaction);
                 case 'lyrics': return await this.handleLyrics(interaction);
-                case 'fx': return await this.handleEffects(interaction, player);
-                case 'seek': return await this.handleSeek(interaction, player);
-                case 'remove': return await this.handleRemove(interaction, player);
-                case 'help': return await this.handleHelp(interaction);
-                case 'stats': return await this.handleStats(interaction);
-                case 'history': return await this.handleHistory(interaction);
-                case 'prefix': return await this.handlePrefix(interaction);
+                case 'np': return await this.handleNowPlaying(interaction, player);
+                case '247': return await this.handle247(interaction, player);
+
+                // USER DATA
                 case 'mystats': return await this.handleMyStats(interaction);
-                case 'toptrack': return await this.handleTopTracks(interaction);
-                case 'topartist': return await this.handleTopArtists(interaction);
-                case 'leaderboard': return await this.handleLeaderboard(interaction);
+                case 'history': return await this.handleHistory(interaction);
+                case 'clearhistory': return await this.handleClearHistory(interaction);
+
                 default:
                     return interaction.reply({ embeds: [this.errorEmbed('Unknown command')], ephemeral: true });
             }
@@ -1082,5 +1120,260 @@ module.exports = {
                 embeds: [this.errorEmbed('Error', error.message)]
             });
         }
+    },
+
+    // ===== NEW HANDLERS =====
+
+    // Previous track handler
+    async handlePrevious(interaction, player) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Check if there's playback history
+            const history = player.data?.history || [];
+
+            if (history.length === 0) {
+                return interaction.editReply({
+                    embeds: [this.errorEmbed('No History', 'No previous tracks in history yet!')]
+                });
+            }
+
+            // Get the previous track
+            const previousTrack = history.pop();
+            player.data.history = history;
+
+            // Add current track to front of queue if playing
+            const current = player.queue?.current;
+            if (current) {
+                player.queue.unshift(current);
+            }
+
+            // Search and play the previous track
+            const lavalink = interaction.client.lavalink;
+            const result = await lavalink.search(previousTrack.uri || previousTrack.title, {
+                requester: interaction.user
+            });
+
+            if (result?.tracks?.[0]) {
+                // Stop current and play previous
+                player.queue.unshift(result.tracks[0]);
+                player.skip();
+
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0x00D166)
+                        .setTitle('⏮️ Playing Previous Track')
+                        .setDescription(`**${previousTrack.title}**\nby ${previousTrack.author || 'Unknown'}`)]
+                });
+            } else {
+                return interaction.editReply({
+                    embeds: [this.errorEmbed('Track Unavailable', 'Could not load the previous track.')]
+                });
+            }
+        } catch (error) {
+            console.error('[PREVIOUS] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
+        }
+    },
+
+    // Bass boost handler
+    async handleBass(interaction, player) {
+        const level = interaction.options.getInteger('level');
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Calculate bass gain from level (0-10 -> 0-0.5)
+            const gain = level / 20;
+
+            // Apply bass EQ to low frequency bands
+            await player.setFilters({
+                equalizer: [
+                    { band: 0, gain: gain },
+                    { band: 1, gain: gain * 0.8 },
+                    { band: 2, gain: gain * 0.6 },
+                    { band: 3, gain: gain * 0.4 }
+                ]
+            });
+
+            // Store bass level in player data
+            if (!player.data) player.data = {};
+            player.data.bassLevel = level;
+
+            const bars = '█'.repeat(level) + '░'.repeat(10 - level);
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setColor(0x6366F1)
+                    .setTitle('🔊 Bass Boost')
+                    .setDescription(`**Level:** ${level}/10\n\`${bars}\``)
+                    .setFooter({ text: level === 0 ? 'Bass boost disabled' : 'Heavy bass frequencies enhanced' })]
+            });
+        } catch (error) {
+            console.error('[BASS] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
+        }
+    },
+
+    // Audio quality handler
+    async handleQuality(interaction, player) {
+        const level = interaction.options.getString('level');
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Store quality preference in player data
+            if (!player.data) player.data = {};
+            player.data.quality = level;
+
+            const qualityInfo = {
+                'low': { bitrate: '64kbps', icon: '📶', desc: 'Data saver mode - reduced quality for slower connections' },
+                'medium': { bitrate: '128kbps', icon: '📶📶', desc: 'Balanced quality - good for most users' },
+                'high': { bitrate: '256kbps', icon: '📶📶📶', desc: 'High quality - crisp and clear audio' },
+                'ultra': { bitrate: '320kbps', icon: '📶📶📶📶', desc: 'Maximum bitrate - best quality MP3' },
+                'studio': { bitrate: 'FLAC', icon: '🎼', desc: 'Lossless audio when available' }
+            };
+
+            const info = qualityInfo[level];
+
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setColor(0x10B981)
+                    .setTitle(`${info.icon} Audio Quality Set`)
+                    .setDescription(`**Quality:** ${level.charAt(0).toUpperCase() + level.slice(1)}\n**Bitrate:** ${info.bitrate}`)
+                    .addFields({
+                        name: 'ℹ️ Note',
+                        value: info.desc + '\n\n*Quality applies to newly fetched tracks.*'
+                    })
+                    .setFooter({ text: 'Higher quality = more bandwidth' })]
+            });
+        } catch (error) {
+            console.error('[QUALITY] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
+        }
+    },
+
+    // Equalizer preset handler
+    async handleEqualizer(interaction, player) {
+        const preset = interaction.options.getString('preset');
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // 10-band EQ presets (bands 0-9)
+            const eqPresets = {
+                'flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'bass_head': [0.5, 0.45, 0.35, 0.25, 0.1, 0, -0.05, -0.1, -0.1, -0.15],
+                'treble': [-0.15, -0.1, -0.05, 0, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45],
+                'vocal': [-0.2, -0.1, 0, 0.15, 0.3, 0.35, 0.3, 0.15, 0, -0.1],
+                'rock': [0.25, 0.15, 0.05, -0.1, -0.15, -0.05, 0.1, 0.2, 0.25, 0.3],
+                'classical': [0.15, 0.1, 0.05, 0, -0.05, -0.05, 0, 0.1, 0.2, 0.25],
+                'electronic': [0.4, 0.35, 0.2, 0, -0.1, 0.1, 0.2, 0.3, 0.35, 0.4],
+                'jazz': [0.15, 0.05, 0, 0.1, 0.2, 0.2, 0.15, 0.1, 0.15, 0.2],
+                'pop': [0.1, 0.2, 0.25, 0.2, 0.05, -0.05, 0.05, 0.1, 0.15, 0.2],
+                'rnb': [0.35, 0.3, 0.2, 0.1, 0, 0.05, 0.15, 0.2, 0.15, 0.1]
+            };
+
+            const gains = eqPresets[preset] || eqPresets['flat'];
+
+            // Apply EQ
+            await player.setFilters({
+                equalizer: gains.map((gain, band) => ({ band, gain }))
+            });
+
+            // Store preset in player data
+            if (!player.data) player.data = {};
+            player.data.eqPreset = preset;
+
+            const presetNames = {
+                'flat': '🎚️ Flat',
+                'bass_head': '🔊 Bass Head',
+                'treble': '✨ Treble Boost',
+                'vocal': '🎤 Vocal',
+                'rock': '🎸 Rock',
+                'classical': '🎹 Classical',
+                'electronic': '🎧 Electronic',
+                'jazz': '🎺 Jazz',
+                'pop': '🎵 Pop',
+                'rnb': '💿 R&B'
+            };
+
+            // Create visual EQ display
+            const eqBars = gains.map((g, i) => {
+                const level = Math.round((g + 0.5) * 6);
+                const bar = '▓'.repeat(Math.max(0, level)) + '░'.repeat(Math.max(0, 6 - level));
+                return `${['32Hz', '64Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '4kHz', '8kHz', '16kHz'][i].padEnd(5)} ${bar}`;
+            }).join('\n');
+
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setColor(0x8B5CF6)
+                    .setTitle(`${presetNames[preset]} EQ Applied`)
+                    .setDescription(`\`\`\`\n${eqBars}\n\`\`\``)
+                    .setFooter({ text: 'Pro tip: Different presets suit different genres' })]
+            });
+        } catch (error) {
+            console.error('[EQUALIZER] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
+        }
+    },
+
+    // 24/7 mode handler
+    async handle247(interaction, player) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Toggle 24/7 mode
+            if (!player.data) player.data = {};
+            const isEnabled = !player.data.mode247;
+            player.data.mode247 = isEnabled;
+
+            if (isEnabled) {
+                // Disable auto-disconnect
+                // Store in guild settings for persistence
+                const guildId = interaction.guildId;
+                if (!interaction.client.guildSettings) {
+                    interaction.client.guildSettings = new Map();
+                }
+                interaction.client.guildSettings.set(guildId, {
+                    ...(interaction.client.guildSettings.get(guildId) || {}),
+                    mode247: true,
+                    voiceChannel: interaction.member?.voice?.channelId
+                });
+            } else {
+                // Remove 24/7 setting
+                if (interaction.client.guildSettings) {
+                    const settings = interaction.client.guildSettings.get(interaction.guildId) || {};
+                    delete settings.mode247;
+                    delete settings.voiceChannel;
+                    interaction.client.guildSettings.set(interaction.guildId, settings);
+                }
+            }
+
+            const embed = new EmbedBuilder()
+                .setColor(isEnabled ? 0x10B981 : 0xEF4444)
+                .setTitle(isEnabled ? '🔵 24/7 Mode Enabled' : '🔴 24/7 Mode Disabled')
+                .setDescription(isEnabled
+                    ? '**The bot will now stay connected 24/7!**\n\n' +
+                    '• Won\'t disconnect when idle\n' +
+                    '• Auto-reconnects if kicked\n' +
+                    '• Preserves your queue\n\n' +
+                    '*Note: Playing music will resume if disconnected and reconnected.*'
+                    : 'The bot will now disconnect normally when idle or when the queue ends.'
+                )
+                .setTimestamp();
+
+            return interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('[247] Error:', error);
+            return interaction.editReply({
+                embeds: [this.errorEmbed('Error', error.message)]
+            });
+        }
     }
 };
+

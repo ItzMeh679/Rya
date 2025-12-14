@@ -20,7 +20,7 @@ class AudioEffects extends EventEmitter {
             cacheHits: 0,
             cacheMisses: 0
         };
-        
+
         // Advanced streaming configuration
         this.streamConfig = {
             inputFormat: 'webm',
@@ -34,10 +34,10 @@ class AudioEffects extends EventEmitter {
             reconnectStreams: true,
             prebuffer: true
         };
-        
+
         // Pre-computed filter templates
         this.filterTemplates = this.initializeFilterTemplates();
-        
+
         console.log('[AUDIO EFFECTS] Enhanced audio effects system initialized');
     }
 
@@ -99,6 +99,58 @@ class AudioEffects extends EventEmitter {
                 'equalizer=f=1000:width_type=h:width=300:g=1',
                 'equalizer=f=3000:width_type=h:width=800:g=1',
                 'volume=1.1'
+            ],
+            // NEW EFFECTS
+            vaporwave: [
+                'atempo=0.8',
+                'aecho=0.5:0.6:800:0.35',
+                'equalizer=f=80:width_type=h:width=60:g=4',
+                'equalizer=f=4000:width_type=h:width=1500:g=-2',
+                'chorus=0.3:0.4:30:0.25:0.2:1',
+                'lowpass=f=12000'
+            ],
+            phonk: [
+                'equalizer=f=40:width_type=h:width=30:g=10',
+                'equalizer=f=80:width_type=h:width=50:g=8',
+                'equalizer=f=150:width_type=h:width=80:g=5',
+                'compand=0.01|0.01:0.2|0.2:-40/-10|-8/-8:8:0:-40:0.01',
+                'equalizer=f=2500:width_type=h:width=1000:g=2',
+                'volume=0.85'
+            ],
+            concert: [
+                'aecho=0.7:0.8:1000:0.4',
+                'aecho=0.3:0.4:500:0.2',
+                'equalizer=f=100:width_type=h:width=80:g=2',
+                'equalizer=f=2000:width_type=h:width=600:g=1',
+                'stereotools=mlev=0.9:slev=1.2',
+                'volume=0.9'
+            ],
+            intimate: [
+                'highpass=f=80',
+                'lowpass=f=12000',
+                'equalizer=f=200:width_type=h:width=100:g=3',
+                'equalizer=f=3000:width_type=h:width=800:g=2',
+                'compand=0.1|0.1:1|1:-30/-15|-15/-5|-5/-5:3:0:-30:0.1',
+                'volume=1.05'
+            ],
+            radio: [
+                'highpass=f=100',
+                'lowpass=f=8000',
+                'compand=0.02|0.02:0.3|0.3:-30/-10|-10/-5|-5/-5:5:0:-30:0.05',
+                'equalizer=f=3000:width_type=h:width=1000:g=3',
+                'volume=0.95'
+            ],
+            '8d': [
+                'apulsator=hz=0.08:amount=0.5',
+                'extrastereo=m=2.5',
+                'chorus=0.5:0.7:40:0.3:0.2:1.5',
+                'highpass=f=25',
+                'lowpass=f=16000'
+            ],
+            karaoke: [
+                'pan=mono|c0=0.5*c0+-0.5*c1',
+                'aecho=0.5:0.6:400:0.2',
+                'equalizer=f=300:width_type=h:width=200:g=2'
             ]
         };
     }
@@ -109,7 +161,7 @@ class AudioEffects extends EventEmitter {
     async applyEffects(inputStream, options = {}) {
         const startTime = Date.now();
         let outputStream = null;
-        
+
         try {
             // Validate input stream
             if (!inputStream || typeof inputStream.pipe !== 'function') {
@@ -140,7 +192,7 @@ class AudioEffects extends EventEmitter {
 
             // Generate cache key
             const cacheKey = this.generateCacheKey(options);
-            
+
             // Check processing queue
             if (this.processingQueue.has(cacheKey)) {
                 console.log('[AUDIO EFFECTS] Effect already processing, waiting...');
@@ -152,22 +204,22 @@ class AudioEffects extends EventEmitter {
             this.processingQueue.set(cacheKey, processingPromise);
 
             outputStream = await processingPromise;
-            
+
             // Clean up
             this.processingQueue.delete(cacheKey);
-            
+
             const processingTime = Date.now() - startTime;
             console.log(`[AUDIO EFFECTS] Processing completed in ${processingTime}ms`);
-            
+
             this.processingStats.success++;
             this.emit('effectApplied', { options, processingTime });
-            
+
             return outputStream;
 
         } catch (error) {
             this.processingStats.errors++;
             console.error('[AUDIO EFFECTS] Effect application error:', error);
-            
+
             // Always return a working stream
             return this.createPassthroughStream(inputStream);
         }
@@ -179,16 +231,16 @@ class AudioEffects extends EventEmitter {
     async processAudioStreamAdvanced(inputStream, options) {
         return new Promise((resolve, reject) => {
             this.activeProcesses++;
-            
+
             const cleanup = () => {
                 this.activeProcesses--;
             };
 
             // Create stable output stream
-            const outputStream = new PassThrough({ 
-                highWaterMark: this.streamConfig.bufferSize 
+            const outputStream = new PassThrough({
+                highWaterMark: this.streamConfig.bufferSize
             });
-            
+
             // Timeout handler
             const timeoutId = setTimeout(() => {
                 console.warn('[AUDIO EFFECTS] Processing timeout, using passthrough');
@@ -199,7 +251,7 @@ class AudioEffects extends EventEmitter {
             try {
                 // Build optimized filter chain
                 const filters = this.buildOptimizedFilterChain(options);
-                
+
                 if (filters.length === 0) {
                     clearTimeout(timeoutId);
                     cleanup();
@@ -244,7 +296,7 @@ class AudioEffects extends EventEmitter {
                         clearTimeout(timeoutId);
                         console.error('[AUDIO EFFECTS] FFmpeg processing error:', error.message);
                         cleanup();
-                        
+
                         // Provide fallback stream
                         resolve(this.createPassthroughStream(inputStream));
                     })
@@ -256,7 +308,7 @@ class AudioEffects extends EventEmitter {
 
                 // Pipe to output stream with error handling
                 const ffmpegStream = command.pipe();
-                
+
                 ffmpegStream.on('error', (error) => {
                     console.error('[AUDIO EFFECTS] Output stream error:', error);
                     outputStream.emit('error', error);
@@ -335,14 +387,14 @@ class AudioEffects extends EventEmitter {
      * Create passthrough stream for fallback
      */
     createPassthroughStream(inputStream = null) {
-        const passthrough = new PassThrough({ 
-            highWaterMark: this.streamConfig.bufferSize 
+        const passthrough = new PassThrough({
+            highWaterMark: this.streamConfig.bufferSize
         });
-        
+
         if (inputStream) {
             inputStream.pipe(passthrough);
         }
-        
+
         return passthrough;
     }
 
@@ -359,12 +411,12 @@ class AudioEffects extends EventEmitter {
             compressor = false
         } = options;
 
-        return effect !== null || 
-               bass !== 0 || 
-               treble !== 0 || 
-               volume !== 1.0 || 
-               normalize || 
-               compressor;
+        return effect !== null ||
+            bass !== 0 ||
+            treble !== 0 ||
+            volume !== 1.0 ||
+            normalize ||
+            compressor;
     }
 
     /**
@@ -390,7 +442,7 @@ class AudioEffects extends EventEmitter {
         };
 
         const config = intensityMap[intensity] || intensityMap.medium;
-        
+
         const options = {
             effect: null,
             customFilters: [
@@ -527,7 +579,7 @@ class AudioEffects extends EventEmitter {
         const config = frequencyConfigs[frequency] || frequencyConfigs.sub;
         const clampedLevel = Math.max(1, Math.min(level, 10));
 
-        const filters = config.map(band => 
+        const filters = config.map(band =>
             `equalizer=f=${band.freq}:width_type=h:width=${band.freq * 0.5}:g=${Math.min(band.gain * 2, 15)}`
         );
 
@@ -550,7 +602,7 @@ class AudioEffects extends EventEmitter {
      */
     createSmoothEqualizer(bassLevel, midLevel, trebleLevel) {
         const filters = [];
-        
+
         // Sub bass (20-80 Hz)
         if (bassLevel !== 0) {
             const gain = Math.max(-12, Math.min(bassLevel * 2, 12));
@@ -614,7 +666,7 @@ class AudioEffects extends EventEmitter {
      */
     getDetailedStats() {
         const memoryUsage = process.memoryUsage();
-        
+
         return {
             processing: {
                 active: this.activeProcesses,
@@ -624,7 +676,7 @@ class AudioEffects extends EventEmitter {
             cache: {
                 size: this.effectsCache.size,
                 maxSize: this.maxCacheSize,
-                hitRate: this.processingStats.cacheHits + this.processingStats.cacheMisses > 0 
+                hitRate: this.processingStats.cacheHits + this.processingStats.cacheMisses > 0
                     ? ((this.processingStats.cacheHits / (this.processingStats.cacheHits + this.processingStats.cacheMisses)) * 100).toFixed(2) + '%'
                     : '0%'
             },
@@ -649,57 +701,57 @@ class AudioEffects extends EventEmitter {
      */
     getAvailableEffects() {
         return [
-            { 
-                id: 'spatial3D', 
-                name: '3D Spatial Sound', 
+            {
+                id: 'spatial3D',
+                name: '3D Spatial Sound',
                 description: 'Immersive 3D spatial audio with room simulation',
                 parameters: ['intensity: low|medium|high']
             },
-            { 
-                id: 'speedUp', 
-                name: 'Sped Up & Fast Beats', 
+            {
+                id: 'speedUp',
+                name: 'Sped Up & Fast Beats',
                 description: 'Energetic fast version with enhanced clarity',
                 parameters: []
             },
-            { 
-                id: 'slowedReverb', 
-                name: 'Slowed & Reverb', 
+            {
+                id: 'slowedReverb',
+                name: 'Slowed & Reverb',
                 description: 'Perfect slowed version with atmospheric reverb',
                 parameters: ['slowFactor: 0.5-1.0', 'reverbIntensity: light|medium|heavy']
             },
-            { 
-                id: 'bassBoost', 
-                name: 'Advanced Bass Boost', 
+            {
+                id: 'bassBoost',
+                name: 'Advanced Bass Boost',
                 description: 'Frequency-targeted bass enhancement',
                 parameters: ['level: 1-10', 'frequency: sub|mid|punch']
             },
-            { 
-                id: 'trebleBoost', 
-                name: 'Crystal Treble Boost', 
+            {
+                id: 'trebleBoost',
+                name: 'Crystal Treble Boost',
                 description: 'Enhanced high-frequency clarity',
                 parameters: ['level: 1-5']
             },
-            { 
-                id: 'nightcore', 
-                name: 'Enhanced Nightcore', 
+            {
+                id: 'nightcore',
+                name: 'Enhanced Nightcore',
                 description: 'High-energy anime-style enhancement',
                 parameters: ['intensity: light|medium|extreme']
             },
-            { 
-                id: 'lofi', 
-                name: 'Professional Lo-Fi', 
+            {
+                id: 'lofi',
+                name: 'Professional Lo-Fi',
                 description: 'Warm, nostalgic lo-fi hip hop sound',
                 parameters: ['warmth: light|medium|warm']
             },
-            { 
-                id: 'electronic', 
-                name: 'Electronic Dance', 
+            {
+                id: 'electronic',
+                name: 'Electronic Dance',
                 description: 'EDM-optimized frequency response',
                 parameters: []
             },
-            { 
-                id: 'acoustic', 
-                name: 'Acoustic Enhancement', 
+            {
+                id: 'acoustic',
+                name: 'Acoustic Enhancement',
                 description: 'Natural instrument clarity boost',
                 parameters: []
             }
@@ -744,13 +796,13 @@ class AudioEffects extends EventEmitter {
         if (this.effectsCache.size > this.maxCacheSize * 0.8) {
             const entries = Array.from(this.effectsCache.entries());
             const sortedEntries = entries.sort((a, b) => a[1].lastUsed - b[1].lastUsed);
-            
+
             // Remove oldest 25% of entries
             const removeCount = Math.floor(entries.length * 0.25);
             for (let i = 0; i < removeCount; i++) {
                 this.effectsCache.delete(sortedEntries[i][0]);
             }
-            
+
             console.log(`[AUDIO EFFECTS] Cache optimized: removed ${removeCount} old entries`);
         }
     }
@@ -763,7 +815,7 @@ class AudioEffects extends EventEmitter {
         this.effectsCache.clear();
         this.processingQueue.clear();
         this.streamPool.clear();
-        
+
         // Reset counters
         this.activeProcesses = 0;
         this.processingStats = {
@@ -772,12 +824,12 @@ class AudioEffects extends EventEmitter {
             cacheHits: 0,
             cacheMisses: 0
         };
-        
+
         // Force garbage collection if available
         if (global.gc) {
             global.gc();
         }
-        
+
         console.log('[AUDIO EFFECTS] Complete cleanup performed');
     }
 
@@ -787,19 +839,19 @@ class AudioEffects extends EventEmitter {
     healthCheck() {
         const stats = this.getDetailedStats();
         const issues = [];
-        
+
         if (this.activeProcesses >= this.maxConcurrentProcesses) {
             issues.push('Processing at maximum capacity');
         }
-        
+
         if (this.processingStats.errors > this.processingStats.success) {
             issues.push('High error rate detected');
         }
-        
+
         if (this.effectsCache.size >= this.maxCacheSize) {
             issues.push('Cache at maximum capacity');
         }
-        
+
         return {
             healthy: issues.length === 0,
             issues,

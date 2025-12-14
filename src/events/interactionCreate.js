@@ -8,7 +8,7 @@ const {
 } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const config = require('../config/config.js');
-const MusicPlayer = require('../utils/musicPlayer.js');
+const { formatDuration, createVolumeBar } = require('../utils/formatUtils.js');
 const RecommendationsHelper = require('../utils/recommendationsHelper.js');
 const LyricsHelper = require('../utils/lyricsHelper.js');
 const { QUICK_EMOJIS, PREMIUM_COLORS, validateEmojiConfig, getEmoji } = require('../config/emojiConfig.js');

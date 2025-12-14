@@ -49,6 +49,9 @@ class StatsManager {
             }
             console.log('[STATS] Insert success:', data);
 
+            // ===== GREEDY FILTER: Keep max 30 tracks per user =====
+            await this.applyGreedyHistoryFilter(userId, client);
+
             // Update user stats
             await this.updateUserStats(userId, username, trackData);
 
@@ -66,6 +69,64 @@ class StatsManager {
         } catch (error) {
             console.error('[STATS] Error tracking play:', error);
             return false;
+        }
+    }
+
+    /**
+     * Apply greedy filter to keep max 30 tracks per user
+     * Removes oldest tracks when limit is exceeded
+     */
+    async applyGreedyHistoryFilter(userId, client) {
+        const MAX_HISTORY_PER_USER = 30;
+
+        try {
+            // Count user's tracks
+            const { count, error: countError } = await client
+                .from('listening_history')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+
+            if (countError || count === null) {
+                console.warn('[STATS] Could not count user history for greedy filter');
+                return;
+            }
+
+            // If under limit, no action needed
+            if (count <= MAX_HISTORY_PER_USER) {
+                return;
+            }
+
+            // Calculate how many to delete
+            const toDelete = count - MAX_HISTORY_PER_USER;
+
+            // Get IDs of oldest tracks to delete
+            const { data: oldestTracks, error: selectError } = await client
+                .from('listening_history')
+                .select('id')
+                .eq('user_id', userId)
+                .order('played_at', { ascending: true })
+                .limit(toDelete);
+
+            if (selectError || !oldestTracks || oldestTracks.length === 0) {
+                console.warn('[STATS] Could not fetch oldest tracks for deletion');
+                return;
+            }
+
+            // Delete the oldest tracks
+            const idsToDelete = oldestTracks.map(t => t.id);
+            const { error: deleteError } = await client
+                .from('listening_history')
+                .delete()
+                .in('id', idsToDelete);
+
+            if (deleteError) {
+                console.error('[STATS] Greedy filter delete error:', deleteError);
+            } else {
+                console.log(`[STATS] Greedy filter: Removed ${idsToDelete.length} old tracks for user ${userId}`);
+            }
+
+        } catch (error) {
+            console.error('[STATS] Greedy filter error:', error);
         }
     }
 
