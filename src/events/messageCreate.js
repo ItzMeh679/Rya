@@ -465,11 +465,22 @@ async function handleUtilityCommand(message, command, args) {
 async function handleUtilityHelp(message) {
     const embed = new EmbedBuilder()
         .setColor(0x6366F1)
-        .setTitle('📖 Utility Commands')
-        .setDescription('Use `!r <command>` for these utility features:')
+        .setTitle('📖 Rya Bot - Command Reference')
+        .setDescription('**3 Command Systems:**\n• `/r` - Main music commands (slash)\n• `!r ` - Utility & stats (text)\n• `.r ` - Admin commands (text)')
         .addFields([
             {
-                name: '📊 Statistics',
+                name: '🎵 `/r` Slash Commands (25 total)',
+                value: [
+                    '**Playback:** `play` `skip` `previous` `pause` `resume` `stop` `seek`',
+                    '**Queue:** `queue` `shuffle` `clear` `remove` `loop`',
+                    '**Audio:** `vol` `fx` `bass` `quality` `eq`',
+                    '**AI:** `autoplay` `recommend` `lyrics` `np` `247`',
+                    '**User:** `mystats` `history` `clearhistory`'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📊 `!r ` Utility Commands',
                 value: [
                     '`!r toptrack [count]` - Your most played tracks',
                     '`!r topartist [count]` - Your most played artists',
@@ -478,7 +489,7 @@ async function handleUtilityHelp(message) {
                 inline: false
             },
             {
-                name: '📋 Playlists',
+                name: '📋 `!r ` Playlist Commands',
                 value: [
                     '`!r save <name>` - Save current queue as playlist',
                     '`!r load <name>` - Load a saved playlist',
@@ -487,15 +498,34 @@ async function handleUtilityHelp(message) {
                 inline: false
             },
             {
-                name: '📖 Info',
+                name: '⚙️ `.r ` Admin Commands',
                 value: [
-                    '`!r tuto` - Interactive tutorial',
-                    '`!r help` - This help message'
+                    '`.r stats` - Bot statistics',
+                    '`.r prefix <new>` - Change server prefix',
+                    '`.r node` - Lavalink status',
+                    '`.r config` - Server configuration',
+                    '`.r cache` - Cache stats',
+                    '`.r debug` - Debug info'
                 ].join('\n'),
+                inline: false
+            },
+            {
+                name: '🎛️ Audio Quality & Effects',
+                value: [
+                    '**Quality:** `/r quality <low/medium/high/ultra/studio>`',
+                    '**Bass:** `/r bass <0-10>`',
+                    '**EQ:** `/r eq <flat/bass_head/vocal/rock/electronic/jazz/pop/rnb>`',
+                    '**Effects:** `/r fx <nightcore/slowed/8d/lofi/vaporwave/phonk/karaoke>`'
+                ].join('\n'),
+                inline: false
+            },
+            {
+                name: '📖 More Help',
+                value: '`!r tuto` - Interactive tutorial\n`.r help` - Admin commands help',
                 inline: false
             }
         ])
-        .setFooter({ text: 'For music commands use /r or your custom prefix' })
+        .setFooter({ text: 'Rya Music Bot • Premium Music Experience' })
         .setTimestamp();
 
     return message.reply({ embeds: [embed] });
@@ -601,53 +631,95 @@ async function handleLeaderboard(message, scope) {
 }
 
 async function handleTutorial(message) {
-    const { RYA_EMOJIS, RYA_COLORS } = require('../config/emojiConfig.js');
+    const { RYA_COLORS } = require('../config/emojiConfig.js');
 
     const embed = new EmbedBuilder()
         .setColor(RYA_COLORS?.PRIMARY || 0x6366F1)
-        .setTitle('📖 Rya Music Bot Tutorial')
-        .setDescription('**Quick guide to using the music bot!**')
+        .setTitle('📖 Rya Music Bot - Complete Tutorial')
+        .setDescription('**Welcome to Rya!** A premium Discord music bot with AI features.\n\n**3 Command Prefixes:**\n• `/r` - Main music commands (25 slash commands)\n• `!r ` - Utility & stats commands\n• `.r ` - Admin commands (requires Manage Server)')
         .addFields([
             {
                 name: '🎵 Playing Music',
                 value: [
-                    '`/r play <song>` - Play a song or playlist',
-                    '`/r play spotify:playlist:...` - Play Spotify playlist',
-                    '`/r play https://youtube.com/...` - Play YouTube video'
+                    '`/r play <song>` - Play any song or URL',
+                    '`/r play <spotify playlist>` - Play Spotify playlists',
+                    '`/r skip` / `/r previous` - Navigation',
+                    '`/r pause` / `/r resume` - Playback control',
+                    '`/r stop` - Disconnect from voice'
                 ].join('\n'),
                 inline: false
             },
             {
-                name: '🎛️ Controls',
+                name: '📜 Queue Management',
                 value: [
-                    '`/r skip` - Skip current song',
-                    '`/r pause` / `/r resume` - Pause/resume',
-                    '`/r queue` - View queue',
-                    '`/r shuffle` - Shuffle queue'
+                    '`/r queue` - View current queue',
+                    '`/r shuffle` - Shuffle the queue',
+                    '`/r loop <off/track/queue>` - Loop modes',
+                    '`/r remove <pos>` - Remove track',
+                    '`/r clear` - Clear entire queue'
                 ].join('\n'),
-                inline: false
+                inline: true
             },
             {
-                name: '✨ Special Features',
+                name: '🔊 Audio & Effects',
+                value: [
+                    '`/r vol <0-150>` - Set volume',
+                    '`/r bass <0-10>` - Bass boost',
+                    '`/r eq <preset>` - 10-band EQ',
+                    '`/r fx <effect>` - Audio effects',
+                    '`/r quality <level>` - Audio quality'
+                ].join('\n'),
+                inline: true
+            },
+            {
+                name: '✨ AI Features',
                 value: [
                     '`/r autoplay` - AI adds similar songs',
+                    '`/r recommend` - AI recommendations',
                     '`/r lyrics` - Get song lyrics',
-                    '`/r fx` - Audio effects (nightcore, 8D, etc.)',
-                    '`/r recommend` - AI song recommendations'
+                    '`/r 247` - 24/7 mode (stay connected)'
+                ].join('\n'),
+                inline: true
+            },
+            {
+                name: '📊 Stats & Playlists (`!r ` prefix)',
+                value: [
+                    '`!r toptrack` - Your most played tracks',
+                    '`!r topartist` - Your most played artists',
+                    '`!r leaderboard` - Server leaderboard',
+                    '`!r save <name>` - Save queue as playlist',
+                    '`!r load <name>` - Load saved playlist',
+                    '`!r playlists` - View your playlists'
                 ].join('\n'),
                 inline: false
             },
             {
-                name: '📊 Your Stats',
+                name: '⚙️ Admin Commands (`.r ` prefix)',
                 value: [
-                    '`/r mystats` - Your listening stats',
-                    '`!r toptrack` - Most played songs',
-                    '`!r topartist` - Most played artists'
+                    '`.r stats` - Bot statistics',
+                    '`.r prefix <new>` - Change text prefix',
+                    '`.r node` - Lavalink node status',
+                    '`.r config` - Server configuration'
                 ].join('\n'),
+                inline: false
+            },
+            {
+                name: '🎛️ EQ Presets Available',
+                value: '`flat` `bass_head` `treble` `vocal` `rock` `classical` `electronic` `jazz` `pop` `rnb`',
+                inline: false
+            },
+            {
+                name: '🎧 Audio Effects Available',
+                value: '`nightcore` `slowed` `8d` `bass` `lofi` `vaporwave` `phonk` `karaoke` `clear`',
+                inline: false
+            },
+            {
+                name: '📶 Quality Levels',
+                value: '`low` (64kbps) • `medium` (128kbps) • `high` (256kbps) • `ultra` (320kbps) • `studio` (FLAC)',
                 inline: false
             }
         ])
-        .setFooter({ text: 'Use /r help for full command list' })
+        .setFooter({ text: 'Tip: Use !r help for utility commands, .r help for admin commands' })
         .setTimestamp();
 
     return message.reply({ embeds: [embed] });
