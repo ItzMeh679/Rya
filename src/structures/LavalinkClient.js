@@ -433,18 +433,18 @@ class LavalinkClient {
         // Create progress bar visual (aesthetic touch)
         const progressBar = '━'.repeat(12);
 
-        // Build clean description with status line
+        // Build clean description with status line - more spaced out
         const statusLine = [
             `${e('AUDIO', 'volume') || '🔊'} \`${player.volume}%\``,
             `${e('QUEUE', 'queue') || '📑'} \`${player.queue.length}\``,
             `${loopEmoji || '🔁'} \`${loopText}\``
-        ].join('  •  ');
+        ].join('    ');
 
         const featuresLine = [
-            `${e('QUEUE', 'autoplay') || '🎲'} ${autoplayOn ? '`ON`' : '`OFF`'}`,
-            `${is247On ? '🔵' : '⚫'} 24/7`,
-            isPaused ? `${e('PLAYBACK', 'pause') || '⏸️'} Paused` : `${e('PLAYBACK', 'play') || '▶️'} Playing`
-        ].join('  •  ');
+            `${e('QUEUE', 'autoplay') || '🎲'} \`${autoplayOn ? 'ON' : 'OFF'}\``,
+            `${is247On ? '🔵' : '⚫'} \`24/7\``,
+            isPaused ? `${e('PLAYBACK', 'pause') || '⏸️'} \`Paused\`` : `${e('PLAYBACK', 'play') || '▶️'} \`Playing\``
+        ].join('    ');
 
         const embed = new EmbedBuilder()
             .setColor(RYA_COLORS?.MUSIC || 0x6366F1)
@@ -460,6 +460,7 @@ class LavalinkClient {
                 `\`${this.formatDuration(player.position || 0)}\` ${progressBar} \`${this.formatDuration(track.length)}\``,
                 ``,
                 statusLine,
+                ``,
                 featuresLine
             ].join('\n'))
             .setImage(track.thumbnail)
