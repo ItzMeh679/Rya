@@ -355,7 +355,8 @@ class LavalinkClient {
      */
     async onTrackStart(player, track) {
         try {
-            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+            const panelManager = require('../utils/panelManager.js');
             const textChannel = this.client.channels.cache.get(player.textId);
             if (!textChannel) return;
 
@@ -377,136 +378,196 @@ class LavalinkClient {
                 console.error('[STATS] Tracking error:', statsError);
             }
 
-            // Get loop mode display
-            const loopDisplay = player.loop === 'track' ? 'Track' : player.loop === 'queue' ? 'Queue' : 'Off';
+            // Build the embed and components
+            const { embed, components } = this.buildNowPlayingPanel(player, track);
 
-            // Send now playing message with action buttons
-            const embed = {
-                color: RYA_COLORS?.MUSIC || 0x6366F1,
-                author: {
-                    name: `🎵 Now Playing`,
-                    icon_url: this.client.user.displayAvatarURL()
-                },
-                title: track.title,
-                url: track.uri,
-                description: `**by** ${track.author}\n**Duration:** \`${this.formatDuration(track.length)}\``,
-                thumbnail: { url: track.thumbnail },
-                image: { url: track.thumbnail },
-                fields: [
-                    {
-                        name: '🔊 Volume',
-                        value: `\`${player.volume}%\``,
-                        inline: true
-                    },
-                    {
-                        name: '📑 Queue',
-                        value: `\`${player.queue.length} tracks\``,
-                        inline: true
-                    },
-                    {
-                        name: '🔁 Loop',
-                        value: `\`${loopDisplay}\``,
-                        inline: true
-                    }
-                ],
-                footer: {
-                    text: `Requested by ${track.requester?.username || track.requester?.globalName || 'Unknown'} • Rya Music (Lavalink)`,
-                    icon_url: track.requester?.displayAvatarURL?.() || track.requester?.avatarURL || undefined
-                },
-                timestamp: new Date().toISOString()
-            };
+            // Use panelManager to update or create the panel
+            await panelManager.updateOrCreate(
+                this.client,
+                player.guildId,
+                textChannel,
+                embed,
+                components, // Pass all 3 action rows
+                { isPlaying: true }
+            );
 
-            // Helper function to safely create emoji - uses custom if available, fallback otherwise
-            const safeEmoji = (customId, customName, fallback) => {
-                try {
-                    // Check if bot has access to the emoji
-                    const emoji = this.client.emojis.cache.get(customId);
-                    if (emoji) {
-                        return { id: customId, name: customName };
-                    }
-                } catch (e) { }
-                return fallback;
-            };
+            // Store panel reference on player
+            player.data = player.data || {};
+            player.data.panelChannelId = textChannel.id;
 
-            // Create action buttons - Row 1: Playback controls
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('music_previous')
-                        .setEmoji(safeEmoji('1412039878744608909', 'Ryaprevious', '⏮️'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_pause')
-                        .setEmoji(player.paused ? safeEmoji('1412037694221058058', 'Ryaplay', '▶️') : safeEmoji('1412037507935240235', 'Ryapause', '⏸️'))
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('music_skip')
-                        .setEmoji(safeEmoji('1412037603556986921', 'Ryaskip', '⏭️'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_stop')
-                        .setEmoji(safeEmoji('1412037767352815696', 'Ryastop', '⏹️'))
-                        .setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder()
-                        .setCustomId('music_shuffle')
-                        .setEmoji(safeEmoji('1412037787582206062', 'Ryashuffle', '🔀'))
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            // Row 2: Queue and info controls
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('music_loop')
-                        .setEmoji(safeEmoji('1412036841783296131', 'Ryaloop', '🔁'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_queue')
-                        .setEmoji(safeEmoji('1412037265353609286', 'Ryaqueue', '📑'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_lyrics')
-                        .setEmoji(safeEmoji('1412037852551708772', 'Ryalyrics', '📝'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_voldown')
-                        .setEmoji(safeEmoji('1449360491896897578', 'volDown', '🔉'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_volup')
-                        .setEmoji(safeEmoji('1449360526957215827', 'volUp', '🔊'))
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            // Row 3: Additional features
-            const row3 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('music_autoplay')
-                        .setEmoji(safeEmoji('1412037745240707215', 'Ryaautoplay', '🎲'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_equalizer')
-                        .setEmoji(safeEmoji('1449318106534121493', 'equilizer', '🎚️'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_effects')
-                        .setEmoji(safeEmoji('1412388390602674326', 'Ryaeffects', '🎛️'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_history')
-                        .setEmoji(safeEmoji('1412037449110261780', 'Ryahistory', '🕐'))
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('music_stats')
-                        .setEmoji(safeEmoji('1412037427044024400', 'Ryastats', 'ℹ️'))
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            await textChannel.send({ embeds: [embed], components: [row1, row2, row3] });
-            console.log('[LAVALINK] Now Playing embed sent successfully');
+            console.log('[LAVALINK] Now Playing panel updated successfully');
         } catch (error) {
-            console.error('[LAVALINK] Error sending now playing message:', error);
+            console.error('[LAVALINK] Error updating now playing panel:', error);
+        }
+    }
+
+    /**
+     * Build Now Playing embed and action rows
+     */
+    buildNowPlayingPanel(player, track) {
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+
+        // Get loop mode display
+        const loopDisplay = player.loop === 'track' ? '🔂 Track' : player.loop === 'queue' ? '🔁 Queue' : '➡️ Off';
+        const autoplayStatus = player.data?.autoplay ? '✅ On' : '❌ Off';
+        const is247 = player.data?.mode247 ? '🔵 On' : '⚫ Off';
+
+        // Helper function to safely create emoji
+        const safeEmoji = (customId, customName, fallback) => {
+            try {
+                const emoji = this.client.emojis.cache.get(customId);
+                if (emoji) {
+                    return { id: customId, name: customName };
+                }
+            } catch (e) { }
+            return fallback;
+        };
+
+        const embed = new EmbedBuilder()
+            .setColor(RYA_COLORS?.MUSIC || 0x6366F1)
+            .setAuthor({
+                name: `🎵 Now Playing`,
+                iconURL: this.client.user.displayAvatarURL()
+            })
+            .setTitle(track.title)
+            .setURL(track.uri)
+            .setDescription(`**by** ${track.author}\n**Duration:** \`${this.formatDuration(track.length)}\``)
+            .setThumbnail(track.thumbnail)
+            .setImage(track.thumbnail)
+            .addFields([
+                {
+                    name: '🔊 Volume',
+                    value: `\`${player.volume}%\``,
+                    inline: true
+                },
+                {
+                    name: '📑 Queue',
+                    value: `\`${player.queue.length} tracks\``,
+                    inline: true
+                },
+                {
+                    name: '🔁 Loop',
+                    value: `\`${loopDisplay}\``,
+                    inline: true
+                },
+                {
+                    name: '🎲 Autoplay',
+                    value: `\`${autoplayStatus}\``,
+                    inline: true
+                },
+                {
+                    name: '🔵 24/7',
+                    value: `\`${is247}\``,
+                    inline: true
+                },
+                {
+                    name: player.paused ? '⏸️ Paused' : '▶️ Playing',
+                    value: '\u200B',
+                    inline: true
+                }
+            ])
+            .setFooter({
+                text: `Requested by ${track.requester?.username || track.requester?.globalName || 'Unknown'} • Rya Music`,
+                iconURL: track.requester?.displayAvatarURL?.() || track.requester?.avatarURL || undefined
+            })
+            .setTimestamp();
+
+        // Create action buttons - Row 1: Playback controls
+        const row1 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('music_previous')
+                    .setEmoji(safeEmoji('1412039878744608909', 'Ryaprevious', '⏮️'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_pause')
+                    .setEmoji(player.paused ? safeEmoji('1412037694221058058', 'Ryaplay', '▶️') : safeEmoji('1412037507935240235', 'Ryapause', '⏸️'))
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('music_skip')
+                    .setEmoji(safeEmoji('1412037603556986921', 'Ryaskip', '⏭️'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_stop')
+                    .setEmoji(safeEmoji('1412037767352815696', 'Ryastop', '⏹️'))
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId('music_shuffle')
+                    .setEmoji(safeEmoji('1412037787582206062', 'Ryashuffle', '🔀'))
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        // Row 2: Queue and info controls
+        const row2 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('music_loop')
+                    .setEmoji(safeEmoji('1412036841783296131', 'Ryaloop', '🔁'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_queue')
+                    .setEmoji(safeEmoji('1412037265353609286', 'Ryaqueue', '📑'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_lyrics')
+                    .setEmoji(safeEmoji('1412037852551708772', 'Ryalyrics', '📝'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_voldown')
+                    .setEmoji(safeEmoji('1449360491896897578', 'volDown', '🔉'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_volup')
+                    .setEmoji(safeEmoji('1449360526957215827', 'volUp', '🔊'))
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        // Row 3: Additional features
+        const row3 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('music_autoplay')
+                    .setEmoji(safeEmoji('1412037745240707215', 'Ryaautoplay', '🎲'))
+                    .setStyle(player.data?.autoplay ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_equalizer')
+                    .setEmoji(safeEmoji('1449318106534121493', 'equilizer', '🎚️'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_effects')
+                    .setEmoji(safeEmoji('1412388390602674326', 'Ryaeffects', '🎛️'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_history')
+                    .setEmoji(safeEmoji('1412037449110261780', 'Ryahistory', '🕐'))
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_stats')
+                    .setEmoji(safeEmoji('1412037427044024400', 'Ryastats', 'ℹ️'))
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        return { embed, components: [row1, row2, row3] };
+    }
+
+    /**
+     * Refresh the Now Playing panel (call after button interactions)
+     */
+    async refreshPanel(player) {
+        try {
+            const panelManager = require('../utils/panelManager.js');
+            const textChannel = this.client.channels.cache.get(player.textId);
+            if (!textChannel) return;
+
+            const currentTrack = player.queue.current;
+            if (!currentTrack) return;
+
+            const { embed, components } = this.buildNowPlayingPanel(player, currentTrack);
+
+            // Use editPanel to update in-place (no bump for button interactions)
+            await panelManager.editPanel(this.client, player.guildId, embed, components);
+        } catch (error) {
+            console.error('[LAVALINK] Error refreshing panel:', error);
         }
     }
 

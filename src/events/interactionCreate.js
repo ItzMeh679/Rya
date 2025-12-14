@@ -1136,6 +1136,8 @@ async function handleLavalinkMusicControls(interaction, client) {
                     player.pause(true);
                     await interaction.followUp({ content: '⏸️ Paused playback!', ephemeral: true });
                 }
+                // Refresh panel to update pause/play button
+                await lavalink.refreshPanel(player);
                 break;
 
             case 'skip':
@@ -1186,6 +1188,8 @@ async function handleLavalinkMusicControls(interaction, client) {
                     content: `🔁 Loop mode: **${newLoop === 'none' ? 'Off' : newLoop === 'track' ? 'Track' : 'Queue'}**`,
                     ephemeral: true
                 });
+                // Refresh panel to show new loop state
+                await lavalink.refreshPanel(player);
                 break;
 
             case 'queue':
@@ -1206,12 +1210,14 @@ async function handleLavalinkMusicControls(interaction, client) {
                 const newVolDown = Math.max(0, player.volume - 10);
                 player.setVolume(newVolDown);
                 await interaction.followUp({ content: `🔉 Volume: **${newVolDown}%**`, ephemeral: true });
+                await lavalink.refreshPanel(player);
                 break;
 
             case 'volup':
                 const newVolUp = Math.min(100, player.volume + 10);
                 player.setVolume(newVolUp);
                 await interaction.followUp({ content: `🔊 Volume: **${newVolUp}%**`, ephemeral: true });
+                await lavalink.refreshPanel(player);
                 break;
 
             case 'lyrics':
@@ -1580,6 +1586,8 @@ async function handleLavalinkMusicControls(interaction, client) {
                     content: `🎲 Autoplay: **${player.data.autoplay ? 'Enabled' : 'Disabled'}**\n${player.data.autoplay ? 'Similar tracks will be added when queue ends.' : 'Autoplay disabled.'}`,
                     ephemeral: true
                 });
+                // Refresh panel to update autoplay button style
+                await lavalink.refreshPanel(player);
                 break;
 
             case 'history':
