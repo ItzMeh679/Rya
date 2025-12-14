@@ -543,10 +543,33 @@ class LavalinkClient {
             // Auto-leave after timeout
             if (!textChannel) return;
 
+            // Check for 24/7 mode - don't auto-leave if enabled
+            const is247Mode = player.data?.mode247 ||
+                this.client.guildSettings?.get(player.guildId)?.mode247;
+
+            if (is247Mode) {
+                console.log(`[LAVALINK] 24/7 mode enabled for guild ${player.guildId} - staying connected`);
+                textChannel.send({
+                    content: '🔵 Queue finished. Staying connected (24/7 mode enabled). Use `/r play` to add more tracks!'
+                }).catch(() => { });
+                return;
+            }
+
             setTimeout(() => {
                 try {
                     const currentPlayer = this.kazagumo?.players?.get(player.guildId);
-                    if (currentPlayer && currentPlayer.queue.length === 0 && !currentPlayer.playing) {
+                    if (!currentPlayer) return;
+
+                    // Re-check 24/7 mode in case it was enabled during timeout
+                    const stillIn247 = currentPlayer.data?.mode247 ||
+                        this.client.guildSettings?.get(player.guildId)?.mode247;
+
+                    if (stillIn247) {
+                        console.log(`[LAVALINK] 24/7 mode active - not disconnecting`);
+                        return;
+                    }
+
+                    if (currentPlayer.queue.length === 0 && !currentPlayer.playing) {
                         currentPlayer.destroy();
                         textChannel.send({
                             content: '👋 Queue finished! Disconnecting due to inactivity.'
