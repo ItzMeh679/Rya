@@ -3,6 +3,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('../config/config.js');
 const { formatDuration, formatUptime, createProgressBar } = require('../utils/formatUtils.js');
+const { getEmoji, RYA_COLORS } = require('../config/emojiConfig.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -395,9 +396,8 @@ module.exports = {
                 }
 
                 const embed = new EmbedBuilder()
-                    .setColor(0x00D166)
-                    .setDescription(`📑 Added **${tracks.length}** tracks from **${result.playlistName}**${shuffle ? ' (shuffled)' : ''}`)
-                    .setTimestamp();
+                    .setColor(RYA_COLORS?.SUCCESS || 0x10B981)
+                    .setDescription(`${getEmoji('QUEUE', 'queue') || '📑'} Added **${tracks.length}** tracks from **${result.playlistName}**${shuffle ? ' *(shuffled)*' : ''}`);
 
                 if (!player.playing && !player.paused) player.play();
                 return interaction.editReply({ embeds: [embed] });
@@ -412,11 +412,8 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-                .setColor(0x00D166)
-                .setDescription(`🎵 Added **[${track.title}](${track.uri})**${playNext ? ' to front of queue' : ''}`)
-                .setThumbnail(track.thumbnail || null)
-                .setFooter({ text: `Duration: ${this.formatDuration(track.length)}` })
-                .setTimestamp();
+                .setColor(RYA_COLORS?.SUCCESS || 0x10B981)
+                .setDescription(`${getEmoji('PLAYBACK', 'play') || '▶️'} **[${track.title}](${track.uri})**\n${getEmoji('INFO', 'stats') || '⏱️'} \`${this.formatDuration(track.length)}\`${playNext ? '  •  *Playing next*' : ''}`);
 
             if (!player.playing && !player.paused) player.play();
             return interaction.editReply({ embeds: [embed] });
@@ -447,8 +444,8 @@ module.exports = {
 
         return interaction.editReply({
             embeds: [new EmbedBuilder()
-                .setColor(0x00D166)
-                .setDescription(`⏭️ Skipped${count > 1 ? ` ${count} tracks` : ''}: **${skippedTitle}**`)]
+                .setColor(RYA_COLORS?.SUCCESS || 0x10B981)
+                .setDescription(`${getEmoji('PLAYBACK', 'skip') || '⏭️'} Skipped${count > 1 ? ` **${count}** tracks` : ''}`)]
         });
     },
 
@@ -495,13 +492,10 @@ module.exports = {
         const level = interaction.options.getInteger('level');
         player.setVolume(level);
 
-        const bars = Math.round(level / 10);
-        const volumeBar = '█'.repeat(bars) + '░'.repeat(15 - bars);
-
         return interaction.editReply({
             embeds: [new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setDescription(`🔊 Volume: **${level}%**\n\`${volumeBar}\``)]
+                .setColor(RYA_COLORS?.VOLUME || 0x10B981)
+                .setDescription(`${getEmoji('AUDIO', 'volume') || '🔊'} Volume **${level}%**`)]
         });
     },
 
@@ -551,7 +545,7 @@ module.exports = {
         }
         player.pause(true);
         return interaction.editReply({
-            embeds: [new EmbedBuilder().setColor(0xFEE75C).setDescription('⏸️ Paused playback')]
+            embeds: [new EmbedBuilder().setColor(RYA_COLORS?.WARNING || 0xF59E0B).setDescription(`${getEmoji('PLAYBACK', 'pause') || '⏸️'} Paused`)]
         });
     },
 
@@ -562,7 +556,7 @@ module.exports = {
         }
         player.pause(false);
         return interaction.editReply({
-            embeds: [new EmbedBuilder().setColor(0x00D166).setDescription('▶️ Resumed playback')]
+            embeds: [new EmbedBuilder().setColor(RYA_COLORS?.SUCCESS || 0x10B981).setDescription(`${getEmoji('PLAYBACK', 'play') || '▶️'} Playing`)]
         });
     },
 
@@ -572,11 +566,10 @@ module.exports = {
         const modeMap = { 'off': 'none', 'track': 'track', 'queue': 'queue' };
         player.setLoop(modeMap[mode]);
 
-        const emojis = { 'off': '➡️', 'track': '🔂', 'queue': '🔁' };
         return interaction.editReply({
             embeds: [new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setDescription(`${emojis[mode]} Loop mode: **${mode.charAt(0).toUpperCase() + mode.slice(1)}**`)]
+                .setColor(mode === 'off' ? RYA_COLORS?.SECONDARY || 0x8B5CF6 : RYA_COLORS?.SUCCESS || 0x10B981)
+                .setDescription(`${getEmoji('QUEUE', 'loop') || '🔁'} Loop **${mode.toUpperCase()}**`)]
         });
     },
 
@@ -587,7 +580,7 @@ module.exports = {
         }
         player.queue.shuffle();
         return interaction.editReply({
-            embeds: [new EmbedBuilder().setColor(0x00D166).setDescription(`🔀 Shuffled **${player.queue.length}** tracks`)]
+            embeds: [new EmbedBuilder().setColor(RYA_COLORS?.SUCCESS || 0x10B981).setDescription(`${getEmoji('QUEUE', 'shuffle') || '🔀'} Shuffled **${player.queue.length}** tracks`)]
         });
     },
 
@@ -596,7 +589,7 @@ module.exports = {
         const count = player.queue.length;
         player.queue.clear();
         return interaction.editReply({
-            embeds: [new EmbedBuilder().setColor(0xED4245).setDescription(`🗑️ Cleared **${count}** tracks from queue`)]
+            embeds: [new EmbedBuilder().setColor(RYA_COLORS?.ERROR || 0xEF4444).setDescription(`${getEmoji('EFFECTS', 'cancel') || '🗑️'} Cleared **${count}** tracks`)]
         });
     },
 
@@ -606,9 +599,8 @@ module.exports = {
         const status = player.data.autoplay;
         return interaction.editReply({
             embeds: [new EmbedBuilder()
-                .setColor(status ? 0x00D166 : 0xED4245)
-                .setDescription(`${status ? '🤖 Autoplay **enabled**' : '🚫 Autoplay **disabled**'}`)
-                .setFooter({ text: status ? 'AI will add similar tracks when queue ends' : '' })]
+                .setColor(status ? RYA_COLORS?.SUCCESS || 0x10B981 : RYA_COLORS?.ERROR || 0xEF4444)
+                .setDescription(`${getEmoji('QUEUE', 'autoplay') || '🎲'} Autoplay **${status ? 'ON' : 'OFF'}**`)]
         });
     },
 
