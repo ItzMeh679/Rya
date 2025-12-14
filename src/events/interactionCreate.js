@@ -591,14 +591,7 @@ function parseCustomEmoji(emojiString) {
     return emojiString;
 }
 
-/**
- * Create premium volume bar visualization
- */
-function createVolumeBar(volume, length = 12) {
-    const filled = Math.floor((volume / 100) * length);
-    const empty = length - filled;
-    return '▓'.repeat(filled) + '░'.repeat(empty);
-}
+// Note: createVolumeBar is now imported from formatUtils.js
 
 /**
  * Handle history display with premium styling
