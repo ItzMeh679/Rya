@@ -1618,17 +1618,7 @@ async function handleLavalinkMusicControls(interaction, client) {
     }
 }
 
-// Helper function for formatting duration
-function formatDuration(ms) {
-    if (!ms || ms < 0) return '0:00';
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    if (hours > 0) {
-        return `${hours}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
-}
+// Note: formatDuration is imported from formatUtils.js at the top of this file
 
 // Export utility functions for use by MusicPlayer
 module.exports.createMusicEmbed = createMusicEmbed;
