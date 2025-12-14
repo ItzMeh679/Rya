@@ -370,7 +370,7 @@ class LavalinkClient {
 
     /**
      * Fallback method for Spotify URLs when the Spotify API fails
-     * Uses web scraping to extract track data and searches on YouTube
+     * Uses Spotify's anonymous web player API to get track data
      * @param {string} spotifyUrl - The Spotify URL that failed API lookup
      * @param {Object} requester - The requester object
      * @returns {Object|null} - Search result or null
@@ -378,7 +378,6 @@ class LavalinkClient {
     async searchWithLavalinkFallback(spotifyUrl, requester) {
         console.log(`[LAVALINK FALLBACK] Attempting GUARANTEED fallback for: ${spotifyUrl}`);
         const axios = require('axios');
-        const cheerio = require('cheerio');
 
         // Extract Spotify ID and type from URL
         const spotifyMatch = spotifyUrl.match(/spotify\.com\/(?:intl-[a-z]{2}\/)?(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
@@ -407,157 +406,111 @@ class LavalinkClient {
             console.log(`[LAVALINK FALLBACK] Native search unavailable:`, error.message);
         }
 
-        // METHOD 2: Web scraping - Extract ALL tracks from Spotify's embedded data
+        // METHOD 2: Use Spotify's anonymous web player API (THE GUARANTEED METHOD)
+        // This is how Spotify's embed player works - it uses an anonymous access token
         try {
-            console.log(`[LAVALINK FALLBACK] Scraping Spotify page for track data...`);
+            console.log(`[LAVALINK FALLBACK] Using Spotify's anonymous API...`);
 
-            // Fetch the Spotify embed page (contains structured JSON data)
-            const embedUrl = `https://open.spotify.com/embed/${type}/${id}`;
-            const response = await axios.get(embedUrl, {
+            // Step 1: Get anonymous access token from Spotify's public endpoint
+            const tokenResponse = await axios.get('https://open.spotify.com/get_access_token?reason=transport&productType=web_player', {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5'
+                    'Accept': 'application/json',
+                    'App-Platform': 'WebPlayer'
+                },
+                timeout: 10000
+            });
+
+            const accessToken = tokenResponse.data.accessToken;
+            if (!accessToken) {
+                throw new Error('Failed to get anonymous access token');
+            }
+            console.log(`[LAVALINK FALLBACK] Got anonymous Spotify token!`);
+
+            // Step 2: Fetch the actual content using Spotify's internal API
+            let endpoint;
+            if (type === 'playlist') {
+                endpoint = `https://api.spotify.com/v1/playlists/${id}?fields=name,tracks.items(track(name,artists,duration_ms)),tracks.total`;
+            } else if (type === 'album') {
+                endpoint = `https://api.spotify.com/v1/albums/${id}?fields=name,artists,tracks.items(name,artists,duration_ms)`;
+            } else if (type === 'track') {
+                endpoint = `https://api.spotify.com/v1/tracks/${id}`;
+            } else if (type === 'artist') {
+                endpoint = `https://api.spotify.com/v1/artists/${id}/top-tracks?market=US`;
+            }
+
+            const contentResponse = await axios.get(endpoint, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/json'
                 },
                 timeout: 15000
             });
 
-            const $ = cheerio.load(response.data);
+            const data = contentResponse.data;
+            console.log(`[LAVALINK FALLBACK] Fetched Spotify data: ${data.name || 'Unknown'}`);
 
-            // Find the script tag containing __NEXT_DATA__ or resource data
+            // Step 3: Extract track list based on content type
             let trackList = [];
-            let playlistName = 'Spotify Playlist';
+            let playlistName = data.name || `Spotify ${type}`;
 
-            // Try to find embedded JSON data
-            $('script').each((i, script) => {
-                const content = $(script).html();
-                if (content && content.includes('Spotify.Entity')) {
-                    // Extract entity data
-                    const entityMatch = content.match(/Spotify\.Entity\s*=\s*({.*?});/s);
-                    if (entityMatch) {
-                        try {
-                            const entity = JSON.parse(entityMatch[1]);
-                            if (entity.name) playlistName = entity.name;
-                            if (entity.tracks?.items) {
-                                trackList = entity.tracks.items.map(item => ({
-                                    name: item.track?.name || item.name,
-                                    artist: item.track?.artists?.[0]?.name || item.artists?.[0]?.name || 'Unknown',
-                                    duration: item.track?.duration_ms || item.duration_ms
-                                })).filter(t => t.name);
-                            }
-                        } catch (e) { }
-                    }
-                }
-
-                // Also try __NEXT_DATA__
-                if (content && content.includes('__NEXT_DATA__')) {
-                    try {
-                        const jsonMatch = content.match(/__NEXT_DATA__\s*=\s*({.*})/s);
-                        if (jsonMatch) {
-                            const data = JSON.parse(jsonMatch[1]);
-                            // Navigate through Next.js data structure
-                            const pageProps = data?.props?.pageProps;
-                            if (pageProps?.state?.data?.entity) {
-                                const entity = pageProps.state.data.entity;
-                                if (entity.name) playlistName = entity.name;
-                            }
-                        }
-                    } catch (e) { }
-                }
-            });
-
-            // If we couldn't extract from JSON, try scraping visible track elements
-            if (trackList.length === 0) {
-                console.log(`[LAVALINK FALLBACK] JSON extraction failed, trying HTML parsing...`);
-
-                // Fetch the regular page for better HTML structure
-                const pageResponse = await axios.get(spotifyUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'text/html'
-                    },
-                    timeout: 15000
-                });
-
-                const $page = cheerio.load(pageResponse.data);
-
-                // Extract title from meta tags
-                const ogTitle = $page('meta[property="og:title"]').attr('content') ||
-                    $page('meta[name="og:title"]').attr('content') ||
-                    $page('title').text();
-
-                if (ogTitle) {
-                    playlistName = ogTitle.replace(/ \| Spotify$/i, '').replace(/^This Is /i, '');
-                }
-
-                // Try to extract track info from og:description or description meta
-                const description = $page('meta[property="og:description"]').attr('content') ||
-                    $page('meta[name="description"]').attr('content') || '';
-
-                // Descriptions often contain format like "Song1 · Artist1 · Song2 · Artist2..."
-                if (description && description.includes('·')) {
-                    const parts = description.split('·').map(p => p.trim()).filter(p => p);
-                    // Usually alternates: Track, Artist, Track, Artist...
-                    for (let i = 0; i < parts.length - 1; i += 2) {
-                        if (parts[i] && parts[i + 1]) {
-                            trackList.push({
-                                name: parts[i],
-                                artist: parts[i + 1]
-                            });
-                        }
-                    }
-                }
-
-                // If still no tracks, use the playlist/album title to search
-                if (trackList.length === 0 && playlistName) {
-                    console.log(`[LAVALINK FALLBACK] Using playlist title for search: "${playlistName}"`);
-
-                    // For "This Is" playlists, the title IS the artist name
-                    let searchQuery = playlistName;
-                    if (type === 'playlist') {
-                        searchQuery = `${playlistName} best songs playlist`;
-                    }
-
-                    // Search for a YouTube playlist or get multiple results
-                    const ytResult = await this.kazagumo.search(searchQuery, { requester, engine: 'youtube' });
-
-                    if (ytResult && ytResult.tracks && ytResult.tracks.length > 0) {
-                        // Return up to 50 tracks
-                        const maxTracks = Math.min(ytResult.tracks.length, 50);
-                        console.log(`[LAVALINK FALLBACK] Found ${maxTracks} tracks via title search`);
-                        return {
-                            type: 'PLAYLIST',
-                            playlistName: playlistName,
-                            tracks: ytResult.tracks.slice(0, maxTracks)
-                        };
-                    }
-                }
+            if (type === 'playlist') {
+                trackList = data.tracks?.items
+                    ?.filter(item => item.track && item.track.name)
+                    ?.map(item => ({
+                        name: item.track.name,
+                        artist: item.track.artists?.map(a => a.name).join(', ') || 'Unknown',
+                        duration: item.track.duration_ms
+                    })) || [];
+            } else if (type === 'album') {
+                const albumArtist = data.artists?.map(a => a.name).join(', ') || 'Unknown';
+                trackList = data.tracks?.items?.map(track => ({
+                    name: track.name,
+                    artist: track.artists?.map(a => a.name).join(', ') || albumArtist,
+                    duration: track.duration_ms
+                })) || [];
+            } else if (type === 'track') {
+                trackList = [{
+                    name: data.name,
+                    artist: data.artists?.map(a => a.name).join(', ') || 'Unknown',
+                    duration: data.duration_ms
+                }];
+            } else if (type === 'artist') {
+                playlistName = `Top tracks by ${data.tracks?.[0]?.artists?.[0]?.name || 'Artist'}`;
+                trackList = data.tracks?.map(track => ({
+                    name: track.name,
+                    artist: track.artists?.map(a => a.name).join(', ') || 'Unknown',
+                    duration: track.duration_ms
+                })) || [];
             }
 
-            // If we extracted tracks, search each one
+            console.log(`[LAVALINK FALLBACK] Extracted ${trackList.length} tracks from Spotify API`);
+
+            // Step 4: Search each track on YouTube
             if (trackList.length > 0) {
-                console.log(`[LAVALINK FALLBACK] Extracted ${trackList.length} tracks from page, searching each...`);
-
                 const foundTracks = [];
-                const maxTracks = Math.min(trackList.length, 100); // Limit to 100 tracks
+                const maxTracks = Math.min(trackList.length, 100);
 
-                // Process in batches for speed
+                console.log(`[LAVALINK FALLBACK] Searching ${maxTracks} tracks on YouTube...`);
+
+                // Process in parallel batches for speed
                 const batchSize = 5;
                 for (let i = 0; i < maxTracks; i += batchSize) {
                     const batch = trackList.slice(i, i + batchSize);
+
                     const batchPromises = batch.map(async (track) => {
                         try {
-                            const query = `${track.artist} ${track.name}`;
+                            // Search query format: "Artist - Song Name"
+                            const query = `${track.artist} - ${track.name}`;
                             const result = await this.kazagumo.search(query, { requester, engine: 'youtube' });
 
                             if (result && result.tracks && result.tracks.length > 0) {
-                                // Find best match by checking title similarity
-                                const bestMatch = result.tracks[0];
-                                bestMatch.spotifyData = { name: track.name, artist: track.artist };
-                                return bestMatch;
+                                const foundTrack = result.tracks[0];
+                                foundTrack.spotifyData = { name: track.name, artist: track.artist };
+                                return foundTrack;
                             }
-                        } catch (e) {
-                            console.warn(`[LAVALINK FALLBACK] Failed to find: ${track.name}`);
+                        } catch (searchError) {
+                            console.warn(`[LAVALINK FALLBACK] Could not find: "${track.name}" by ${track.artist}`);
                         }
                         return null;
                     });
@@ -565,14 +518,17 @@ class LavalinkClient {
                     const batchResults = await Promise.all(batchPromises);
                     foundTracks.push(...batchResults.filter(t => t !== null));
 
-                    // Progress log
-                    console.log(`[LAVALINK FALLBACK] Progress: ${foundTracks.length}/${maxTracks} tracks found`);
+                    // Progress log every batch
+                    const progress = Math.min(i + batchSize, maxTracks);
+                    console.log(`[LAVALINK FALLBACK] Progress: ${foundTracks.length} found / ${progress} searched`);
                 }
 
                 if (foundTracks.length > 0) {
-                    console.log(`[LAVALINK FALLBACK] SUCCESS! Found ${foundTracks.length}/${trackList.length} tracks`);
+                    console.log(`[LAVALINK FALLBACK] ✅ SUCCESS! Found ${foundTracks.length}/${trackList.length} tracks`);
+                    console.log(`[LAVALINK FALLBACK] First 3 tracks:`, foundTracks.slice(0, 3).map(t => t.title));
+
                     return {
-                        type: 'PLAYLIST',
+                        type: type === 'track' ? 'TRACK' : 'PLAYLIST',
                         playlistName: playlistName,
                         tracks: foundTracks
                     };
@@ -580,45 +536,54 @@ class LavalinkClient {
             }
 
         } catch (error) {
-            console.error(`[LAVALINK FALLBACK] Web scrape error:`, error.message);
+            console.error(`[LAVALINK FALLBACK] Anonymous API error:`, error.response?.status || error.message);
+
+            // If anonymous API also returns 404, the playlist truly doesn't exist
+            if (error.response?.status === 404) {
+                console.log(`[LAVALINK FALLBACK] Spotify confirmed: playlist does not exist`);
+            }
         }
 
-        // METHOD 3: Last resort - Use third-party API (spotify-url-info style)
+        // METHOD 3: Last resort - oEmbed for title, then search
         try {
-            console.log(`[LAVALINK FALLBACK] Trying oEmbed API fallback...`);
+            console.log(`[LAVALINK FALLBACK] Final fallback: oEmbed API...`);
 
-            // Spotify's oEmbed API is public and returns track/playlist info
             const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(spotifyUrl)}`;
             const oembedResponse = await axios.get(oembedUrl, { timeout: 10000 });
 
             if (oembedResponse.data && oembedResponse.data.title) {
                 const title = oembedResponse.data.title;
-                console.log(`[LAVALINK FALLBACK] oEmbed returned title: "${title}"`);
+                console.log(`[LAVALINK FALLBACK] oEmbed title: "${title}"`);
 
-                // Search for this title on YouTube
-                let searchQuery = title;
-                if (type === 'playlist') {
-                    // For playlists, search for "Artist best songs" or "Artist playlist"
-                    searchQuery = `${title.replace(/^This Is /i, '')} best songs`;
-                }
+                // Extract artist name from "This Is [Artist]" playlists
+                let searchQuery = title.replace(/^This Is /i, '').trim();
 
-                const result = await this.kazagumo.search(searchQuery, { requester, engine: 'youtube' });
+                // Search for the artist's songs specifically
+                const queries = [
+                    `${searchQuery} official audio`,
+                    `${searchQuery} best songs`,
+                    `${searchQuery} full album`
+                ];
 
-                if (result && result.tracks && result.tracks.length > 0) {
-                    const maxTracks = type === 'track' ? 1 : 30;
-                    console.log(`[LAVALINK FALLBACK] oEmbed fallback found ${result.tracks.length} tracks`);
-                    return {
-                        type: type === 'track' ? 'TRACK' : 'PLAYLIST',
-                        playlistName: title,
-                        tracks: result.tracks.slice(0, maxTracks)
-                    };
+                for (const query of queries) {
+                    const result = await this.kazagumo.search(query, { requester, engine: 'youtube' });
+
+                    if (result && result.tracks && result.tracks.length >= 5) {
+                        const maxTracks = Math.min(result.tracks.length, 30);
+                        console.log(`[LAVALINK FALLBACK] oEmbed found ${maxTracks} tracks for "${query}"`);
+                        return {
+                            type: 'PLAYLIST',
+                            playlistName: title,
+                            tracks: result.tracks.slice(0, maxTracks)
+                        };
+                    }
                 }
             }
         } catch (error) {
             console.log(`[LAVALINK FALLBACK] oEmbed fallback failed:`, error.message);
         }
 
-        console.log(`[LAVALINK FALLBACK] All methods exhausted - returning null`);
+        console.log(`[LAVALINK FALLBACK] All methods exhausted - playlist may not exist`);
         return null;
     }
 
