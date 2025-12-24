@@ -3,6 +3,13 @@ const { token } = require('./src/config/config.js');
 const LavalinkClient = require('./src/structures/LavalinkClient.js');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+
+// HTTP Health Check Server for Render deployment
+const PORT = process.env.PORT || 3000;
+const SELF_PING_URL = process.env.SELF_PING_URL;
+const ENABLE_SELF_PING = process.env.ENABLE_SELF_PING === 'true';
+
 
 // Create Discord client with optimal intents
 const client = new Client({
@@ -237,6 +244,60 @@ const healthCheck = () => {
     }
 };
 
+// HTTP Health Server for Render deployment
+const startHealthServer = () => {
+    const server = http.createServer((req, res) => {
+        const uptime = Date.now() - client.startTime;
+        const memoryUsage = process.memoryUsage();
+
+        if (req.url === '/health' || req.url === '/') {
+            const healthData = {
+                status: 'ok',
+                bot: client.user ? 'online' : 'starting',
+                uptime: Math.floor(uptime / 1000) + 's',
+                guilds: client.guilds?.cache?.size || 0,
+                memory: {
+                    rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB',
+                    heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB'
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(healthData));
+        } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not found' }));
+        }
+    });
+
+    server.listen(PORT, () => {
+        console.log(`[HEALTH SERVER] Running on port ${PORT}`);
+    });
+
+    // Self-ping keep-alive mechanism
+    if (ENABLE_SELF_PING && SELF_PING_URL) {
+        const selfPingInterval = setInterval(async () => {
+            if (client.isShuttingDown) return;
+
+            try {
+                const response = await fetch(SELF_PING_URL);
+                if (response.ok) {
+                    console.log('[SELF-PING] Keep-alive ping successful');
+                }
+            } catch (error) {
+                console.warn('[SELF-PING] Ping failed:', error.message);
+            }
+        }, 600000); // Every 10 minutes
+
+        client.intervals = client.intervals || {};
+        client.intervals.selfPing = selfPingInterval;
+        console.log('[SELF-PING] Keep-alive enabled, pinging every 10 minutes');
+    }
+
+    return server;
+};
+
 // Initialize bot
 const initialize = async () => {
     try {
@@ -264,6 +325,9 @@ const initialize = async () => {
             cleanup: cleanupInterval,
             health: healthInterval
         };
+
+        // Start HTTP health server for Render deployment
+        startHealthServer();
 
         // Login to Discord
         await client.login(token);

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: rya-discord-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_SELF_PING
+        value: "true"
+      - key: SELF_PING_URL
+        sync: false
+      # Add your secrets in Render Dashboard (don't put actual values here):
+      # - DISCORD_TOKEN
+      # - DISCORD_CLIENT_ID
+      # - SPOTIFY_CLIENT_ID
+      # - SPOTIFY_CLIENT_SECRET
+      # - GEMINI_API_KEY
+      # - SUPABASE_URL
+      # - SUPABASE_ANON_KEY
+      # - LAVALINK_HOST (use public server like v4.lavalink.rocks:443)
+      # - LAVALINK_PASSWORD
+      # - LAVALINK_SECURE
